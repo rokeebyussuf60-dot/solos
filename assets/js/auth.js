@@ -18,11 +18,19 @@
     const res=await API.call('login',{identity,password},{write:true});
     const session = res.session || { token: res.token, expiresAt: res.expiresAt || '' };
     if(!session || !session.token) throw new Error('Login succeeded but no session was returned. Redeploy the latest Apps Script backend.');
-    API.saveSession(session, false); Auth.user=res.user; document.getElementById('loginMessage').textContent=''; window.SOLOS_APP.boot(res.user);
+    API.saveSession({...session, role:res.user?.role, clanRole:res.user?.clanRole, user:{role:res.user?.role, clanRole:res.user?.clanRole, username:res.user?.username, displayName:res.user?.displayName}}, false); Auth.user=res.user; document.getElementById('loginMessage').textContent=''; window.SOLOS_APP.boot(res.user);
   };
   Auth.restore=async function(){
-    try{ const res=await API.call('me',{}, {method:'GET'}); Auth.user=res.user; window.SOLOS_APP.boot(res.user); }
-    catch(err){ Auth.showAuth(err.message); }
+    try{
+      let res;
+      try{ res=await API.call('me',{}, {method:'GET'}); }
+      catch(firstErr){ res=await API.call('me',{}, {write:true}); }
+      Auth.user=res.user;
+      const session=API.getSession() || {};
+      API.saveSession({...session, role:res.user?.role, clanRole:res.user?.clanRole, user:{role:res.user?.role, clanRole:res.user?.clanRole, username:res.user?.username, displayName:res.user?.displayName}}, false);
+      window.SOLOS_APP.boot(res.user);
+    }
+    catch(err){ Auth.showAuth(err.message || 'Please sign in.'); }
   };
   Auth.forgotPassword=async function(fd){
     const email=fd.get('email')?.trim(); if(!email) throw new Error('Enter your email.');
