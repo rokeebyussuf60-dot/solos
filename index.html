@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="SOLOS十ESPORTZ — competitive Call of Duty: Mobile clan for scrims, rankings, match reports and clan chat.">
-  <link rel="icon" href="assets/img/solos-mark.svg">
+  <link rel="icon" href="assets/img/favicon.png"><link rel="apple-touch-icon" href="assets/img/apple-touch-icon.png">
   <link rel="stylesheet" href="assets/css/base.css">
   <link rel="stylesheet" href="assets/css/public.css"><link rel="stylesheet" href="assets/css/shiny.css">
   <title>SOLOS十ESPORTZ | S²十</title>
@@ -13,7 +13,7 @@
 <a class="skip-link" href="#main">Skip to content</a>
 <header class="site-header">
   <div class="container nav">
-    <a class="brand" href="index.html"><img src="assets/img/solos-mark.svg" alt="SOLOS十ESPORTZ emblem"><span>SOLOS十</span></a>
+    <a class="brand" href="index.html"><img src="assets/img/solos-official-logo-small.webp" alt="SOLOS十ESPORTZ emblem"><span>SOLOS十</span></a>
     <nav class="nav-links" aria-label="Public navigation">
       <a href="index.html">Home</a><a href="team.html">Roster</a><a href="matches.html">Matches</a><a href="leaderboard.html">Leaderboard</a><a href="news.html">News</a><a href="about.html">Rules</a><a href="join.html">Tryouts</a>
     </nav>
@@ -22,26 +22,51 @@
   </div>
 </header>
 <div class="drawer" data-drawer><div class="drawer-panel">
-  <a class="brand" href="index.html"><img src="assets/img/solos-mark.svg" alt=""><span>SOLOS十</span></a>
+  <a class="brand" href="index.html"><img src="assets/img/solos-official-logo-small.webp" alt=""><span>SOLOS十</span></a>
   <a class="btn ghost" href="index.html">Home</a><a class="btn ghost" href="team.html">Roster</a><a class="btn ghost" href="matches.html">Matches</a><a class="btn ghost" href="leaderboard.html">Leaderboard</a><a class="btn ghost" href="news.html">News</a><a class="btn ghost" href="about.html">Rules</a><a class="btn ghost" href="join.html">Tryouts</a><a class="btn cyan" href="app.html#login">Member Login</a><a class="btn primary" href="join.html">Apply</a><button class="btn ghost" type="button" data-close-drawer>Close</button>
 </div></div>
 <main id="main">
-  <section class="hero">
-    <div class="container hero-grid shiny-hero-grid">
-      <div>
-        <span class="eyebrow">Call of Duty: Mobile Clan · S²十</span>
-        <h1>NO FREE <span>WINS.</span></h1>
-        <p>SOLOS十ESPORTZ is for CODM players who show up, play clean and earn their tag. Scrims, rankings, match reports and clan talk all happen here.</p>
-        <div class="hero-actions"><a class="btn primary" href="join.html">Think you're good? Apply</a><a class="btn ghost" href="team.html">View roster</a><a class="btn cyan" href="https://chat.whatsapp.com/DrZtWAFfJZs5p4mFs5CK7V" target="_blank" rel="noopener">Join the clan chat</a></div>
-      </div>
-      <aside class="hero-panel card" aria-label="Featured clan summary">
-        <span class="eyebrow">Featured Match</span>
-        <div id="featuredMatch" class="match-strip"><div class="empty">No featured match yet.</div></div>
-        <div class="hero-kpis" id="publicKpis"><div><span class="muted">Members</span><strong>0</strong></div><div><span class="muted">Win Rate</span><strong>0%</strong></div><div><span class="muted">MVPs</span><strong>0</strong></div></div>
-      </aside>
+  <section class="hero hero-slider" aria-label="SOLOS十ESPORTZ featured slides">
+    <div class="hero-track" id="heroTrack">
+      <article class="hero-slide active" data-slide="0" style="--slide-img:url('../img/esports/hero-templar.webp')">
+        <div class="container hero-grid shiny-hero-grid">
+          <div>
+            <span class="eyebrow">Call of Duty: Mobile Clan · S²十</span>
+            <h1>NO FREE <span>WINS.</span></h1>
+            <p>Every scrim counts. Every player earns their place.</p>
+            <div class="hero-actions"><a class="btn primary" href="join.html">Join SOLOS十</a><a class="btn ghost" href="team.html">View roster</a></div>
+          </div>
+          <aside class="hero-panel card" aria-label="Featured clan summary">
+            <span class="eyebrow">Featured Match</span>
+            <div id="featuredMatch" class="match-strip"><div class="empty">No battles recorded yet.</div></div>
+            <div class="hero-kpis" id="publicKpis"><div><span class="muted">Members</span><strong>0</strong></div><div><span class="muted">Win Rate</span><strong>0%</strong></div><div><span class="muted">MVPs</span><strong>0</strong></div></div>
+          </aside>
+        </div>
+      </article>
+      <article class="hero-slide" data-slide="1" style="--slide-img:url('../img/esports/matches-artery.webp')">
+        <div class="container hero-grid shiny-hero-grid">
+          <div>
+            <span class="eyebrow">Match Day</span>
+            <h1>THE LOBBY <span>IS WAITING.</span></h1>
+            <p>Results, MVPs and the scoreline stay on record.</p>
+            <div class="hero-actions"><a class="btn primary" href="matches.html">View matches</a><a class="btn ghost" href="leaderboard.html">See the board</a></div>
+          </div>
+        </div>
+      </article>
+      <article class="hero-slide" data-slide="2" style="--slide-img:url('../img/esports/ghost-smoke.webp')">
+        <div class="container hero-grid shiny-hero-grid">
+          <div>
+            <span class="eyebrow">Tryouts Open</span>
+            <h1>EARN <span>YOUR TAG.</span></h1>
+            <p>Think you can run with the squad? Cool. Prove it.</p>
+            <div class="hero-actions"><a class="btn primary" href="join.html">Apply now</a><a class="btn cyan" href="https://chat.whatsapp.com/DrZtWAFfJZs5p4mFs5CK7V" target="_blank" rel="noopener">Clan chat</a></div>
+          </div>
+        </div>
+      </article>
     </div>
+    <div class="hero-dots" id="heroDots" aria-label="Hero slide controls"></div>
   </section>
-  <section class="section" id="how"><div class="container"><div class="section-head"><div><span class="eyebrow">How the clan works</span><h2>Show up. Play right. Earn rank.</h2><p>No long talk. Send your application, wait for review, then prove yourself in the lobby.</p></div></div><div class="steps"><article class="card step"><h3>Apply</h3><p>Tell us your CODM UID, role, mode and why you want in.</p></article><article class="card step"><h3>Get reviewed</h3><p>Leadership checks your application before you enter.</p></article><article class="card step"><h3>Wear S²十</h3><p>Once you earn the tag, your name carries S²十.</p></article><article class="card step"><h3>Play scrims</h3><p>Matches, MVPs, score shifts and reports get recorded.</p></article><article class="card step"><h3>Climb</h3><p>Rank is earned through performance, not noise.</p></article></div></div></section>
+  <section class="section" id="how"><div class="container"><div class="section-head"><div><span class="eyebrow">How the clan works</span><h2>Show up. Play right. Earn rank.</h2><p>No long talk. Apply, get reviewed, then prove yourself in the lobby.</p></div></div><div class="steps"><article class="card step"><h3>Apply</h3><p>Tell us your CODM UID, role, mode and why you want in.</p></article><article class="card step"><h3>Get reviewed</h3><p>Leadership checks your application before you enter.</p></article><article class="card step"><h3>Wear S²十</h3><p>Once you earn the tag, your name carries S²十.</p></article><article class="card step"><h3>Play scrims</h3><p>Matches, MVPs, score shifts and reports get recorded.</p></article><article class="card step"><h3>Climb</h3><p>Rank is earned through performance, not noise.</p></article></div></div></section>
   <section class="section"><div class="container editorial"><div class="editorial-visual" role="img" aria-label="Tactical CODM inspired squad visual"></div><div><span class="eyebrow">Clan command room</span><h2>The clan room stays active.</h2><p class="muted">Check the roster, follow the board, talk to the squad and keep up with every result that matters.</p><div class="grid two" style="margin-top:18px"><article class="card feature-card"><h3>Roster & Profiles</h3><p>Every approved player has a profile, avatar, CODM UID, role, tier and match history.</p></article><article class="card feature-card"><h3>Rank History</h3><p>Every XP change leaves a trail. No ghost promotions.</p></article><article class="card feature-card"><h3>Battle Reports</h3><p>Opponents, scorelines, MVPs, maps and notes all stay on record.</p></article><article class="card feature-card"><h3>Clan Room</h3><p>Talk, share clips, call scrims. Just don't flood the chat.</p></article></div></div></div></section>
   <section class="section"><div class="container"><div class="section-head"><div><span class="eyebrow">Roster preview</span><h2>Approved players</h2><p>No players on the board yet. First approved names will show here.</p></div><a class="btn ghost" href="team.html">Full roster</a></div><div class="roster-row" id="homeRoster"><div class="empty">No approved members yet.</div></div></div></section>
   <section class="section"><div class="container grid two"><section class="card panel leader-preview"><div class="section-head" style="margin-bottom:10px"><div><span class="eyebrow">Leaderboard</span><h2>Top players</h2></div><a class="btn ghost small" href="leaderboard.html">View all</a></div><div id="homeLeaderboard"><div class="empty">Leaderboard is empty.</div></div></section><section class="card panel"><div class="section-head" style="margin-bottom:10px"><div><span class="eyebrow">Newsroom</span><h2>Latest clan updates</h2></div><a class="btn ghost small" href="news.html">All news</a></div><div id="homeNews" class="news-list"><div class="empty">No published news yet.</div></div></section></div></section>

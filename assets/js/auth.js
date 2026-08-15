@@ -27,15 +27,18 @@
   Auth.forgotPassword=async function(fd){
     const email=fd.get('email')?.trim(); if(!email) throw new Error('Enter your email.');
     const res=await API.call('requestPasswordReset',{email},{write:true});
-    document.getElementById('forgotMessage').textContent=res.message || 'If the account exists, a reset instruction has been created.';
+    document.getElementById('forgotMessage').textContent=res.message || 'If the account exists, reset instructions have been created.';
   };
   Auth.logout=async function(){
     try{ await API.call('logout',{}, {write:true}); } catch(err){ console.warn(err.message); }
-    API.clearSession(); Auth.showAuth('Signed out successfully.');
+    API.clearSession(); Auth.user=null;
+    history.replaceState(null,'','index.html');
+    window.location.replace('index.html');
   };
   Auth.showAuth=function(message){
     Auth.user=null; API.clearSession(); document.getElementById('appShell')?.classList.add('hidden'); document.getElementById('authScreen')?.classList.remove('hidden');
-    if(message) document.getElementById('loginMessage').textContent=message;
+    Auth.showPane('loginPane');
+    const msg=document.getElementById('loginMessage'); if(msg) msg.textContent=message||'';
   };
   document.addEventListener('DOMContentLoaded',()=>{ if(document.getElementById('authScreen')) Auth.init(); });
   window.SOLOS_AUTH=Auth;

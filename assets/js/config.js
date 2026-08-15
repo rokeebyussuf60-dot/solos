@@ -3,7 +3,7 @@ window.SOLOS_CONFIG = {
   APP_NAME: 'SOLOS十ESPORTZ',
   CLAN_TAG: 'S²十',
   SESSION_KEY: 'solos_v2_session',
-  REQUEST_TIMEOUT_MS: 22000,
+  REQUEST_TIMEOUT_MS: 24000,
   CHAT_POLL_MS: 45000,
   SOCIALS: {
     whatsapp: 'https://chat.whatsapp.com/DrZtWAFfJZs5p4mFs5CK7V',
