@@ -1,0 +1,14 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="SOLOS十ESPORTZ S squared clan mark">
+  <defs>
+    <linearGradient id="bg" x1="86" y1="35" x2="423" y2="473" gradientUnits="userSpaceOnUse"><stop stop-color="#20252B"/><stop offset="0.42" stop-color="#080A0D"/><stop offset="1" stop-color="#000000"/></linearGradient>
+    <linearGradient id="chrome" x1="126" y1="137" x2="392" y2="360" gradientUnits="userSpaceOnUse"><stop stop-color="#FFFFFF"/><stop offset="0.35" stop-color="#CCD4DE"/><stop offset="0.68" stop-color="#7C8792"/><stop offset="1" stop-color="#F7F9FB"/></linearGradient>
+    <linearGradient id="gold" x1="143" y1="118" x2="385" y2="410" gradientUnits="userSpaceOnUse"><stop stop-color="#FFF3B1"/><stop offset="0.42" stop-color="#F3C24F"/><stop offset="1" stop-color="#8E5714"/></linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="108" fill="url(#bg)"/>
+  <path d="M75 108L256 46L437 108V241C437 343 365 425 256 470C147 425 75 343 75 241V108Z" fill="#0E141A" stroke="url(#gold)" stroke-width="11"/>
+  <path d="M104 130L256 78L408 130V237C408 323 349 393 256 432C163 393 104 323 104 237V130Z" stroke="#FFFFFF" stroke-opacity="0.12" stroke-width="3"/>
+  <path d="M127 159H298C330 159 351 175 351 203C351 230 334 245 304 250L218 264C203 267 196 271 196 281C196 292 207 297 226 297H382V349H210C167 349 140 326 140 288C140 256 159 238 202 231L284 217C297 215 303 210 303 201C303 191 294 187 278 187H127V159Z" fill="url(#chrome)"/>
+  <path d="M352 129H384V166H421V198H384V235H352V198H315V166H352V129Z" fill="url(#gold)"/>
+  <path d="M137 368H375" stroke="url(#gold)" stroke-width="18" stroke-linecap="round"/>
+  <text x="256" y="416" text-anchor="middle" font-family="Arial Black, Impact, sans-serif" font-size="46" fill="#F4F7FB" letter-spacing="-1">S²十</text>
+</svg>

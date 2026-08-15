@@ -1,0 +1,9 @@
+<svg width="1600" height="900" viewBox="0 0 1600 900" fill="none" xmlns="http://www.w3.org/2000/svg">
+<rect width="1600" height="900" fill="#080B10"/>
+<defs><pattern id="grid" width="48" height="48" patternUnits="userSpaceOnUse"><path d="M48 0H0V48" stroke="#203041" stroke-opacity=".55" stroke-width="1"/></pattern><radialGradient id="g" cx="50%" cy="50%" r="70%"><stop offset="0" stop-color="#1A2A39" stop-opacity=".8"/><stop offset="1" stop-color="#080B10" stop-opacity="0"/></radialGradient></defs>
+<rect width="1600" height="900" fill="url(#grid)"/>
+<circle cx="1140" cy="220" r="460" fill="url(#g)"/>
+<path d="M0 708C268 647 440 755 667 679C928 591 1113 400 1600 431V900H0V708Z" fill="#0E151D"/>
+<path d="M104 705L284 596L463 665L622 558L842 620L1021 489L1231 552L1427 418" stroke="#8BF2D8" stroke-opacity=".22" stroke-width="3"/>
+<path d="M101 706L283 596L462 665" stroke="#FFB03A" stroke-opacity=".35" stroke-width="7" stroke-linecap="round"/>
+</svg>
