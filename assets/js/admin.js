@@ -1,100 +1,238 @@
 (function(){
-  const API=window.SOLOS_API, UI=window.SOLOS_UI, C=window.SOLOS_CONFIG;
-  const Admin={};
-  const CLAN_ROLES=['CLAN_MASTER','CO_LEADER','MANAGEMENT','MEMBER'];
-  const TIERS=['T1','T2','T3','T4'];
-  const playerName = u => (u?.role === 'SUPER_ADMIN' || u?.isClanMember === 'NO') ? (u.displayName || u.username || 'Super Admin') : (u.clanDisplayName || `${C.CLAN_TAG} ${u.displayName || u.username || 'Player'}`);
+  const API = window.SOLOS_API, UI = window.SOLOS_UI, C = window.SOLOS_CONFIG;
+  const Admin = {};
+  const CLAN_ROLES = ['CLAN_MASTER','CO_LEADER','MANAGEMENT','MEMBER'];
+  const TIERS = ['T1','T2','T3','T4'];
+
+  const esc = v => UI.escape(v ?? '');
+  const n = v => Number(v || 0);
+  const playerName = u => (u?.role === 'SUPER_ADMIN' || u?.isClanMember === 'NO')
+    ? (u.displayName || u.username || 'Super Admin')
+    : (u.clanDisplayName || `${C.CLAN_TAG} ${u.displayName || u.username || 'Player'}`);
+
   function avatar(u, size=''){
-    const src = u.profileImage || u.avatarUrl || '';
-    const initials = UI.escape((u.displayName || u.username || '?').slice(0,2).toUpperCase());
-    return src ? `<img class="avatar avatar-img ${size}" src="${UI.escape(src)}" alt="${UI.escape(playerName(u))} avatar">` : `<div class="avatar ${size}">${initials}</div>`;
+    const src = u?.profileImage || u?.avatarUrl || '';
+    const initials = esc((u?.displayName || u?.username || '?').slice(0,2).toUpperCase());
+    return src
+      ? `<img class="avatar avatar-img ${size}" src="${esc(src)}" alt="${esc(playerName(u))} avatar">`
+      : `<div class="avatar ${size}">${initials}</div>`;
   }
-  function memberOptions(users){return users.filter(u=>u.isClanMember==='YES' && ['APPROVED','ACTIVE'].includes(u.status)).map(u=>`<option value="${UI.escape(u.userId)}">${UI.escape(playerName(u))}</option>`).join('');}
-  Admin.render=async function(route, main, user){
-    if(route==='dashboard') return Admin.dashboard(main,user);
-    if(route==='members') return Admin.members(main,user);
-    if(route==='ranking') return Admin.ranking(main,user);
-    if(route==='matches') return Admin.matches(main,user);
-    if(route==='news') return Admin.news(main,user);
-    if(route==='announcements') return Admin.announcements(main,user);
-    if(route==='chat') return Admin.chatModeration(main,user);
-    if(route==='reports') return Admin.reports(main,user);
-    if(route==='audit') return Admin.audit(main,user);
-    if(route==='permissions') return Admin.permissions(main,user);
-    if(route==='settings') return Admin.settings(main,user);
-    main.innerHTML=UI.empty('Page not found.');
+  function memberOptions(users){
+    return users
+      .filter(u => u.isClanMember === 'YES' && ['APPROVED','ACTIVE'].includes(u.status))
+      .map(u => `<option value="${esc(u.userId)}">${esc(playerName(u))}</option>`)
+      .join('');
+  }
+  function statusClass(v){ return String(v || '').toLowerCase().replace(/[^a-z0-9_-]/g,''); }
+  function winRate(u){ return n(u.matches) ? Math.round(n(u.wins) / n(u.matches) * 100) : 0; }
+  function clanRole(u){ return u.clanRole || u.role || 'MEMBER'; }
+  function canSuper(user){ return user?.role === 'SUPER_ADMIN'; }
+  function safeList(list){ return Array.isArray(list) ? list : []; }
+
+  Admin.render = async function(route, main, user){
+    if(route === 'dashboard') return Admin.dashboard(main,user);
+    if(route === 'members') return Admin.members(main,user);
+    if(route === 'content') return Admin.content(main,user);
+    if(route === 'feed') return Admin.feed(main,user);
+    if(route === 'ranking') return Admin.ranking(main,user);
+    if(route === 'matches') return Admin.matches(main,user);
+    if(route === 'news') return Admin.news(main,user);
+    if(route === 'announcements') return Admin.announcements(main,user);
+    if(route === 'chat') return Admin.chatModeration(main,user);
+    if(route === 'reports') return Admin.reports(main,user);
+    if(route === 'audit') return Admin.audit(main,user);
+    if(route === 'permissions') return Admin.permissions(main,user);
+    if(route === 'settings') return Admin.settings(main,user);
+    main.innerHTML = UI.empty('That section is not available.');
   };
-  Admin.dashboard=async function(main,user){
-    const d=await API.call('adminDashboard',{}, {method:'GET'}); const s=d.stats||{};
-    const title = user.role==='SUPER_ADMIN' ? 'Command Center' : 'Clan HQ';
-    const sub = user.role==='SUPER_ADMIN' ? 'Control the clan without touching the player board.' : 'Keep applications, scrims and the roster moving.';
-    main.innerHTML=`<section class="card panel"><span class="eyebrow">SOLOS十ESPORTZ</span><h2>${title}</h2><p class="muted">${sub}</p></section><section class="stats-grid"><div class="card stat-card"><span>Total Members</span><strong>${s.totalMembers||0}</strong></div><div class="card stat-card"><span>Pending</span><strong>${s.pendingApplications||0}</strong></div><div class="card stat-card"><span>Scrims</span><strong>${s.matches||0}</strong></div><div class="card stat-card"><span>Win Rate</span><strong>${s.winRate||0}%</strong></div><div class="card stat-card"><span>Leadership</span><strong>${s.leadership||0}</strong></div><div class="card stat-card"><span>Suspended</span><strong>${s.suspendedMembers||0}</strong></div></section><section class="dashboard-grid"><div class="card panel"><h2>Recent Command Activity</h2>${(d.activity||[]).length ? d.activity.map(a=>`<p><span class="muted">${UI.date(a.createdAt)}</span><br>${UI.escape(a.action)} ${UI.escape(a.targetName||'')}</p>`).join('') : UI.empty('No command activity yet.')}</div><div class="card panel"><h2>Top Player</h2>${d.topPlayer?`<div class="profile-card">${avatar(d.topPlayer)}<h3>${UI.escape(playerName(d.topPlayer))}</h3><p class="muted">${UI.escape(d.topPlayer.tier)} · ${UI.escape(d.topPlayer.score)} XP</p></div>`:UI.empty('No ranked players yet.')}</div></section>`;
+
+  Admin.dashboard = async function(main,user){
+    const d = await API.call('adminDashboard',{}, {method:'GET'});
+    const s = d.stats || {};
+    const tier = d.tiers || {};
+    const recentMembers = safeList(d.recentMembers).slice(0,4);
+    const recentScrims = safeList(d.recentScrims).slice(0,3);
+    const announcements = safeList(d.recentAnnouncements).slice(0,2);
+    const topPlayers = safeList(d.topPlayers || (d.topPlayer ? [d.topPlayer] : [])).slice(0,3);
+    const pending = n(s.pendingApplications);
+    const title = canSuper(user) ? 'Clan Panel' : 'Leadership Panel';
+    const sub = canSuper(user) ? 'Run the roster, scrims, rankings and clan content from one place.' : 'Handle the clan work your role allows.';
+    main.innerHTML = `
+      <section class="admin-panel-head">
+        <span class="eyebrow">SOLOS十ESPORTZ</span>
+        <h2>${title}</h2>
+        <p>${sub}</p>
+      </section>
+      <section class="stats-grid admin-stat-grid">
+        <div class="card stat-card"><span>Total Members</span><strong>${n(s.totalMembers)}</strong></div>
+        <div class="card stat-card"><span>Active</span><strong>${n(s.activeMembers)}</strong></div>
+        <div class="card stat-card ${pending ? 'needs-attention' : ''}"><span>Pending</span><strong>${pending}</strong></div>
+        <div class="card stat-card"><span>Suspended</span><strong>${n(s.suspendedMembers)}</strong></div>
+        <div class="card stat-card"><span>Tier 1</span><strong>${n(tier.T1)}</strong></div>
+        <div class="card stat-card"><span>Tier 2</span><strong>${n(tier.T2)}</strong></div>
+        <div class="card stat-card"><span>Tier 3</span><strong>${n(tier.T3)}</strong></div>
+        <div class="card stat-card"><span>Management</span><strong>${n(s.leadership)}</strong></div>
+      </section>
+      <section class="admin-action-grid">
+        <button class="card admin-action-card ${pending ? 'hot' : ''}" type="button" data-admin-jump="members">
+          <span>Pending Applications</span><strong>${pending}</strong><em>${pending === 1 ? '1 player waiting' : pending + ' players waiting'}</em>
+        </button>
+        <button class="card admin-action-card" type="button" data-admin-jump="matches">
+          <span>Recent Scrim</span><strong>${recentScrims[0] ? esc((recentScrims[0].result || 'SCRIM') + ' — ' + (recentScrims[0].solosScore ?? '0') + ':' + (recentScrims[0].opponentScore ?? '0')) : 'None yet'}</strong><em>${recentScrims[0] ? 'vs ' + esc(recentScrims[0].opponent || 'Opponent') : 'No battles recorded yet'}</em>
+        </button>
+        <button class="card admin-action-card" type="button" data-admin-jump="ranking">
+          <span>Top Player</span><strong>${topPlayers[0] ? esc(playerName(topPlayers[0])) : 'No rank yet'}</strong><em>${topPlayers[0] ? `#1 · ${esc(topPlayers[0].score || 0)} XP` : 'The board is waiting'}</em>
+        </button>
+        <button class="card admin-action-card" type="button" data-admin-jump="announcements">
+          <span>Recent Announcement</span><strong>${announcements[0] ? esc(announcements[0].title) : 'Nothing posted'}</strong><em>${announcements[0] ? UI.date(announcements[0].createdAt) : 'Keep the clan updated'}</em>
+        </button>
+      </section>
+      <section class="dashboard-grid admin-dashboard-grid">
+        <div class="card panel admin-list-panel"><h2>Recent Members</h2>${recentMembers.length ? recentMembers.map(u => `<div class="mini-row">${avatar(u,'small-avatar')}<div><strong>${esc(playerName(u))}</strong><span>${esc(u.status || '')} · ${esc(clanRole(u))}</span></div></div>`).join('') : UI.empty('No players on the board yet.')}</div>
+        <div class="card panel admin-list-panel"><h2>Top Players</h2>${topPlayers.length ? topPlayers.map((u,i) => `<div class="mini-row"><b>#${i+1}</b><div><strong>${esc(playerName(u))}</strong><span>${esc(u.tier || 'T1')} · ${esc(u.score || 0)} XP</span></div></div>`).join('') : UI.empty('No ranked players yet.')}</div>
+      </section>`;
+    main.querySelectorAll('[data-admin-jump]').forEach(btn => btn.addEventListener('click', () => window.SOLOS_APP.navigate(btn.dataset.adminJump)));
   };
-  Admin.members=async function(main,user){
-    main.innerHTML=`<section class="card panel"><h2>Members & Applications</h2><p class="muted">Approve players, keep the squad clean, and control clan roles.</p><div class="filters"><input id="memberSearch" placeholder="Search members"><select id="memberStatus"><option value="">All statuses</option><option>PENDING</option><option>APPROVED</option><option>REJECTED</option><option>SUSPENDED</option><option>INACTIVE</option></select><button class="btn ghost" id="reloadMembers" type="button" data-loading-text="Refreshing...">Refresh</button></div><div class="table-wrap"><table class="data-table" id="membersTable"><thead><tr><th>Player</th><th>Email</th><th>Clan Role</th><th>CODM Role</th><th>Tier</th><th>Score</th><th>Status</th><th>Actions</th></tr></thead><tbody><tr><td colspan="8">Loading...</td></tr></tbody></table></div></section>`;
+
+  Admin.content = async function(main){
+    const [ann, news, matches] = await Promise.all([
+      API.call('getAnnouncements',{}, {method:'GET'}).catch(()=>({announcements:[]})),
+      API.call('getNews',{}, {method:'GET'}).catch(()=>({news:[]})),
+      API.call('getMatches',{}, {method:'GET'}).catch(()=>({matches:[]}))
+    ]);
+    const announcements = safeList(ann.announcements);
+    const newsRows = safeList(news.news);
+    const scrims = safeList(matches.matches).filter(m => m.status !== 'CANCELLED');
+    main.innerHTML = `
+      <section class="admin-panel-head"><span class="eyebrow">Content</span><h2>Clan Content</h2><p>Post updates, record battles and keep the roster informed.</p></section>
+      <section class="content-action-grid">
+        <button class="card content-action" type="button" data-admin-jump="announcements"><strong>Announcements</strong><span>${announcements.length} posted</span><em>+ New</em></button>
+        <button class="card content-action" type="button" data-admin-jump="matches"><strong>Scrims</strong><span>${scrims.length} recorded</span><em>+ New</em></button>
+        <button class="card content-action" type="button" data-admin-jump="news"><strong>News</strong><span>${newsRows.length} stories</span><em>+ New</em></button>
+        <button class="card content-action" type="button" data-admin-jump="feed"><strong>Clan Feed</strong><span>Recent squad activity</span><em>Open</em></button>
+      </section>`;
+    main.querySelectorAll('[data-admin-jump]').forEach(btn => btn.addEventListener('click', () => window.SOLOS_APP.navigate(btn.dataset.adminJump)));
+  };
+
+  Admin.feed = async function(main){
+    const d = await API.call('adminDashboard',{}, {method:'GET'});
+    const feed = safeList(d.feed);
+    main.innerHTML = `<section class="admin-panel-head"><span class="eyebrow">Feed</span><h2>Clan Feed</h2><p>Useful updates from the roster, scrims and clan posts.</p></section><section class="card panel feed-panel">${feed.length ? feed.map(item => `<div class="feed-item"><span>${esc(item.type || 'Update')}</span><strong>${esc(item.text || '')}</strong><em>${UI.date(item.createdAt)}</em></div>`).join('') : UI.empty('Nothing moving yet.')}</section>`;
+  };
+
+  Admin.members = async function(main,user){
+    main.innerHTML = `
+      <section class="card panel admin-members-panel">
+        <div class="section-row"><div><h2 id="membersTitle">Members</h2><p class="muted">Search the roster, open a player card and take action where your role allows.</p></div><button class="btn ghost" id="reloadMembers" type="button" data-loading-text="Refreshing...">Refresh</button></div>
+        <div class="filters admin-member-filters"><input id="memberSearch" placeholder="Search members..."><select id="memberStatus"><option value="">All statuses</option><option>PENDING</option><option>APPROVED</option><option>REJECTED</option><option>SUSPENDED</option><option>INACTIVE</option></select><select id="memberRole"><option value="">All roles</option><option>MEMBER</option><option>MANAGEMENT</option><option>CO_LEADER</option><option>CLAN_MASTER</option></select></div>
+        <div class="admin-member-cards" id="memberCards"></div>
+        <div class="table-wrap admin-member-table"><table class="data-table" id="membersTable"><thead><tr><th>Player</th><th>Email</th><th>Clan Role</th><th>CODM Role</th><th>Tier</th><th>Score</th><th>Status</th><th>Actions</th></tr></thead><tbody><tr><td colspan="8">Loading...</td></tr></tbody></table></div>
+      </section>`;
+    function roleSelect(u){
+      if(!canSuper(user)) return '';
+      return `<select data-role-user="${esc(u.userId)}" class="mini-select" aria-label="Change clan role for ${esc(playerName(u))}">${CLAN_ROLES.map(r => `<option ${clanRole(u)===r || u.role===r ? 'selected' : ''}>${r}</option>`).join('')}</select>`;
+    }
+    function actionButtons(u){
+      return `<div class="actions admin-card-actions"><button class="btn small cyan" data-approve="${esc(u.userId)}" type="button" data-loading-text="Approving...">Approve</button><button class="btn small ghost" data-reject="${esc(u.userId)}" type="button" data-loading-text="Rejecting...">Reject</button><button class="btn small danger" data-suspend="${esc(u.userId)}" type="button" data-loading-text="Suspending...">Suspend</button><button class="btn small ghost" data-reactivate="${esc(u.userId)}" type="button" data-loading-text="Reactivating...">Reactivate</button>${roleSelect(u)}</div>`;
+    }
+    function memberCard(u, rank){
+      return `<details class="admin-member-card"><summary><div class="member-summary-left">${avatar(u,'small-avatar')}<div><strong>${esc(playerName(u))}</strong><span>${esc(u.status || '')} · ${esc(clanRole(u))}</span></div></div><span class="chev">⌄</span></summary><div class="member-detail-grid"><div>${avatar(u,'large-avatar')}</div><dl><dt>Username</dt><dd>${esc(u.username || '—')}</dd><dt>CODM UID</dt><dd>${esc(u.codmUid || '—')}</dd><dt>Clan role</dt><dd>${esc(clanRole(u))}</dd><dt>Tier</dt><dd>${esc(u.tier || 'T1')}</dd><dt>Score</dt><dd>${esc(u.score || 0)} XP</dd><dt>Rank</dt><dd>${rank ? '#' + rank : '—'}</dd><dt>Wins</dt><dd>${esc(u.wins || 0)}</dd><dt>Losses</dt><dd>${esc(u.losses || 0)}</dd><dt>Win rate</dt><dd>${winRate(u)}%</dd><dt>MVPs</dt><dd>${esc(u.mvps || 0)}</dd><dt>Joined</dt><dd>${UI.date(u.createdAt)}</dd></dl></div>${actionButtons(u)}</details>`;
+    }
     async function load(){
-      const res=await API.call('listUsers',{}, {method:'GET'}); const q=(document.getElementById('memberSearch')?.value||'').toLowerCase(); const st=document.getElementById('memberStatus')?.value||'';
-      const rows=(res.users||[]).filter(u=>u.role!=='SUPER_ADMIN').filter(u=>(!st||u.status===st)&&(!q||`${u.username} ${u.displayName} ${u.email} ${u.clanDisplayName}`.toLowerCase().includes(q)));
-      const tbody=document.querySelector('#membersTable tbody');
-      tbody.innerHTML=rows.map(u=>`<tr><td>${avatar(u,'small-avatar')} <strong>${UI.escape(playerName(u))}</strong><br><span class="muted">${UI.escape(u.username||'')}</span></td><td>${UI.escape(u.email||'')}</td><td>${UI.escape(u.role||'MEMBER')}</td><td>${UI.escape(u.playerRole||'—')}</td><td>${UI.escape(u.tier||'Unranked')}</td><td>${UI.escape(u.score||0)}</td><td><span class="status ${String(u.status).toLowerCase()}">${UI.escape(u.status)}</span></td><td><div class="actions"><button class="btn small cyan" data-approve="${UI.escape(u.userId)}" type="button" data-loading-text="Approving...">Approve</button><button class="btn small ghost" data-reject="${UI.escape(u.userId)}" type="button" data-loading-text="Rejecting...">Reject</button><button class="btn small danger" data-suspend="${UI.escape(u.userId)}" type="button" data-loading-text="Suspending...">Suspend</button><button class="btn small ghost" data-reactivate="${UI.escape(u.userId)}" type="button" data-loading-text="Reactivating...">Reactivate</button>${user.role==='SUPER_ADMIN'?`<select data-role-user="${UI.escape(u.userId)}" class="mini-select">${CLAN_ROLES.map(r=>`<option ${u.role===r?'selected':''}>${r}</option>`).join('')}</select>`:''}</div></td></tr>`).join('') || '<tr><td colspan="8">No players on the board yet.</td></tr>';
-      UI.tableCellLabels(document.getElementById('membersTable')); bindActions();
+      const res = await API.call('listUsers',{}, {method:'GET'});
+      const q = (document.getElementById('memberSearch')?.value || '').toLowerCase();
+      const st = document.getElementById('memberStatus')?.value || '';
+      const role = document.getElementById('memberRole')?.value || '';
+      const all = safeList(res.users).filter(u => u.role !== 'SUPER_ADMIN' && u.isClanMember === 'YES');
+      const ranked = [...all].sort((a,b) => n(b.score)-n(a.score)).map((u,i) => [u.userId, i+1]);
+      const rankMap = Object.fromEntries(ranked);
+      const rows = all.filter(u => (!st || u.status === st) && (!role || clanRole(u) === role || u.role === role) && (!q || `${u.username} ${u.displayName} ${u.email} ${u.clanDisplayName} ${u.codmUid}`.toLowerCase().includes(q)));
+      const title = document.getElementById('membersTitle'); if(title) title.textContent = `Members (${rows.length})`;
+      const tbody = document.querySelector('#membersTable tbody');
+      tbody.innerHTML = rows.map(u => `<tr><td>${avatar(u,'small-avatar')} <strong>${esc(playerName(u))}</strong><br><span class="muted">${esc(u.username || '')}</span></td><td>${esc(u.email || '')}</td><td>${esc(clanRole(u))}</td><td>${esc(u.playerRole || '—')}</td><td>${esc(u.tier || 'Unranked')}</td><td>${esc(u.score || 0)}</td><td><span class="status ${statusClass(u.status)}">${esc(u.status)}</span></td><td>${actionButtons(u)}</td></tr>`).join('') || '<tr><td colspan="8">No players on the board yet.</td></tr>';
+      document.getElementById('memberCards').innerHTML = rows.map(u => memberCard(u, rankMap[u.userId])).join('') || UI.empty('No players on the board yet.');
+      UI.tableCellLabels(document.getElementById('membersTable'));
+      bindActions();
     }
     function bindActions(){
-      document.querySelectorAll('[data-approve]').forEach(b=>UI.bindButton(b,async()=>{await API.call('approveUser',{userId:b.dataset.approve},{write:true}); UI.toast('Member approved.','success'); await load();}));
-      document.querySelectorAll('[data-reject]').forEach(b=>UI.bindButton(b,async()=>{await API.call('rejectUser',{userId:b.dataset.reject},{write:true}); UI.toast('Application rejected.','success'); await load();}));
-      document.querySelectorAll('[data-suspend]').forEach(b=>UI.bindButton(b,async()=>{if(!confirm('Suspend this member?'))return; await API.call('suspendUser',{userId:b.dataset.suspend},{write:true}); UI.toast('Member suspended.','success'); await load();}));
-      document.querySelectorAll('[data-reactivate]').forEach(b=>UI.bindButton(b,async()=>{await API.call('reactivateUser',{userId:b.dataset.reactivate},{write:true}); UI.toast('Member reactivated.','success'); await load();}));
-      document.querySelectorAll('[data-role-user]').forEach(s=>{ if(s.dataset.bound==='1') return; s.dataset.bound='1'; s.addEventListener('change',async()=>{ if(!confirm('Change this player clan role?')) return; try{ await API.call('updateClanRole',{userId:s.dataset.roleUser, role:s.value},{write:true}); UI.toast('Clan role updated.','success'); await load(); }catch(err){ UI.toast(err.message||'Unable to update role.','error'); await load(); } }); });
+      document.querySelectorAll('[data-approve]').forEach(b => UI.bindButton(b, async () => { await API.call('approveUser',{userId:b.dataset.approve},{write:true}); UI.toast('Member approved.','success'); await load(); }));
+      document.querySelectorAll('[data-reject]').forEach(b => UI.bindButton(b, async () => { await API.call('rejectUser',{userId:b.dataset.reject},{write:true}); UI.toast('Application rejected.','success'); await load(); }));
+      document.querySelectorAll('[data-suspend]').forEach(b => UI.bindButton(b, async () => { if(!confirm('Suspend this member?')) return; await API.call('suspendUser',{userId:b.dataset.suspend},{write:true}); UI.toast('Member suspended.','success'); await load(); }));
+      document.querySelectorAll('[data-reactivate]').forEach(b => UI.bindButton(b, async () => { await API.call('reactivateUser',{userId:b.dataset.reactivate},{write:true}); UI.toast('Member reactivated.','success'); await load(); }));
+      document.querySelectorAll('[data-role-user]').forEach(s => { if(s.dataset.bound === '1') return; s.dataset.bound = '1'; s.addEventListener('change', async () => { if(!confirm('Change this player clan role?')) return; try{ await API.call('updateClanRole',{userId:s.dataset.roleUser, role:s.value},{write:true}); UI.toast('Clan role updated.','success'); await load(); } catch(err){ UI.toast(err.message || 'Unable to update role.','error'); await load(); } }); });
     }
-    document.getElementById('memberSearch')?.addEventListener('input',()=>load()); document.getElementById('memberStatus')?.addEventListener('change',()=>load()); UI.bindButton(document.getElementById('reloadMembers'),()=>load()); await load();
+    ['memberSearch','memberStatus','memberRole'].forEach(id => document.getElementById(id)?.addEventListener('input', load));
+    document.getElementById('memberStatus')?.addEventListener('change', load);
+    document.getElementById('memberRole')?.addEventListener('change', load);
+    UI.bindButton(document.getElementById('reloadMembers'), () => load());
+    await load();
   };
-  Admin.ranking=async function(main){
-    const res=await API.call('listUsers',{}, {method:'GET'}); const users=(res.users||[]).filter(u=>u.role!=='SUPER_ADMIN'&&u.isClanMember==='YES');
-    main.innerHTML=`<section class="grid two"><form class="card panel form-grid" id="rankForm"><h2>Adjust Player XP</h2><div class="field"><label>Player</label><select name="userId" required>${memberOptions(users)}</select></div><div class="field"><label>XP change</label><input name="delta" type="number" required placeholder="25 or -10"></div><div class="field"><label>Reason</label><input name="reason" required maxlength="160" placeholder="Scrim correction, bonus, penalty..."></div><button class="btn primary" type="submit" data-loading-text="Updating...">Apply XP</button></form><form class="card panel form-grid" id="setRankForm"><h2>Set Exact Rank</h2><div class="field"><label>Player</label><select name="userId" required>${memberOptions(users)}</select></div><div class="field"><label>Exact score</label><input name="score" type="number" min="0" required></div><div class="field"><label>Tier</label><select name="tier"><option value="">Auto from score</option>${TIERS.map(t=>`<option>${t}</option>`).join('')}</select></div><div class="field"><label>Reason</label><input name="reason" required maxlength="160"></div><button class="btn primary" type="submit" data-loading-text="Saving...">Save Exact Rank</button></form></section><section class="card panel" style="margin-top:16px"><h2>Score History</h2><div id="rankHistory">Loading...</div></section>`;
-    UI.bindForm(document.getElementById('rankForm'), async fd=>{await API.call('updateRanking',Object.fromEntries(fd.entries()),{write:true}); UI.toast('XP updated.','success'); await Admin.ranking(main);});
-    UI.bindForm(document.getElementById('setRankForm'), async fd=>{await API.call('setCompetitiveProfile',Object.fromEntries(fd.entries()),{write:true}); UI.toast('Ranking saved.','success'); await Admin.ranking(main);});
-    const h=await API.call('rankingHistory',{}, {method:'GET'}); document.getElementById('rankHistory').innerHTML=(h.history||[]).slice(0,40).map(x=>`<p><strong>${UI.escape(x.playerName||'Player')}</strong> ${UI.escape(x.delta)} XP<br><span class="muted">${UI.escape(x.previousTier||'—')} → ${UI.escape(x.newTier||'—')} · ${UI.escape(x.reason)} · ${UI.date(x.createdAt)}</span></p>`).join('') || UI.empty('No XP changes yet.');
+
+  Admin.ranking = async function(main){
+    const res = await API.call('listUsers',{}, {method:'GET'});
+    const users = safeList(res.users).filter(u => u.role !== 'SUPER_ADMIN' && u.isClanMember === 'YES');
+    main.innerHTML = `<section class="grid two"><form class="card panel form-grid" id="rankForm"><h2>Adjust Player XP</h2><div class="field"><label>Player</label><select name="userId" required>${memberOptions(users)}</select></div><div class="field"><label>XP change</label><input name="delta" type="number" required placeholder="25 or -10"></div><div class="field"><label>Reason</label><input name="reason" required maxlength="160" placeholder="Scrim correction, bonus, penalty..."></div><button class="btn primary" type="submit" data-loading-text="Updating...">Apply XP</button></form><form class="card panel form-grid" id="setRankForm"><h2>Set Exact Rank</h2><div class="field"><label>Player</label><select name="userId" required>${memberOptions(users)}</select></div><div class="field"><label>Exact score</label><input name="score" type="number" min="0" required></div><div class="field"><label>Tier</label><select name="tier"><option value="">Auto from score</option>${TIERS.map(t => `<option>${t}</option>`).join('')}</select></div><div class="field"><label>Reason</label><input name="reason" required maxlength="160"></div><button class="btn primary" type="submit" data-loading-text="Saving...">Save Exact Rank</button></form></section><section class="card panel" style="margin-top:16px"><h2>Score History</h2><div id="rankHistory">Loading...</div></section>`;
+    UI.bindForm(document.getElementById('rankForm'), async fd => { await API.call('updateRanking',Object.fromEntries(fd.entries()),{write:true}); UI.toast('XP updated.','success'); await Admin.ranking(main); });
+    UI.bindForm(document.getElementById('setRankForm'), async fd => { await API.call('setCompetitiveProfile',Object.fromEntries(fd.entries()),{write:true}); UI.toast('Ranking saved.','success'); await Admin.ranking(main); });
+    const h = await API.call('rankingHistory',{}, {method:'GET'});
+    document.getElementById('rankHistory').innerHTML = safeList(h.history).slice(0,40).map(x => `<p><strong>${esc(x.playerName || 'Player')}</strong> ${esc(x.delta)} XP<br><span class="muted">${esc(x.previousTier || '—')} → ${esc(x.newTier || '—')} · ${esc(x.reason)} · ${UI.date(x.createdAt)}</span></p>`).join('') || UI.empty('No XP changes yet.');
   };
-  Admin.matches=async function(main){
-    const users=(await API.call('listUsers',{}, {method:'GET'})).users||[]; const options=memberOptions(users);
-    main.innerHTML=`<section class="grid two"><form class="card panel form-grid" id="scrimForm"><h2>Add Scrim Result</h2><input type="hidden" name="matchId" id="matchId"><div class="field"><label>Opponent</label><input name="opponent" required></div><div class="grid two"><div class="field"><label>Our score</label><input name="solosScore" type="number" min="0" required></div><div class="field"><label>Opponent score</label><input name="opponentScore" type="number" min="0" required></div></div><div class="grid two"><div class="field"><label>Date</label><input name="matchDate" type="date"></div><div class="field"><label>Time</label><input name="matchTime" type="time"></div></div><div class="grid two"><div class="field"><label>Game mode</label><select name="mode"><option>MP</option><option>BR</option><option>Scrim</option><option>Tournament</option></select></div><div class="field"><label>Map</label><input name="map" placeholder="Standoff, Firing Range..."></div></div><div class="field"><label>Participating players</label><select name="participantIds" multiple size="7" required>${options}</select><small class="muted">Hold Ctrl on Windows to pick more than one player.</small></div><div class="field"><label>MVP</label><select name="mvpUserId"><option value="">No MVP</option>${options}</select></div><div class="grid two"><div class="field"><label>Custom bonus per player</label><input name="customBonus" type="number" value="0"></div><div class="field"><label>Screenshot URL</label><input name="screenshotUrl" type="url"></div></div><div class="field"><label>Notes</label><textarea name="notes" placeholder="What happened in the lobby?"></textarea></div><button class="btn primary" type="submit" data-loading-text="Saving scrim...">Save Scrim Result</button><button class="btn ghost" type="button" id="clearScrimForm">Clear</button></form><section class="card panel"><h2>Scoring</h2><p class="muted">Points are calculated after the scrim is saved.</p><div id="scoringBox" class="statline"><div><span class="muted">Win</span><strong>30</strong></div><div><span class="muted">Participation</span><strong>10</strong></div><div><span class="muted">MVP</span><strong>10</strong></div></div></section></section><section class="card panel" style="margin-top:16px"><h2>Scrim Results</h2><div class="table-wrap"><table class="data-table" id="matchesTable"><thead><tr><th>Date</th><th>Opponent</th><th>Score</th><th>Result</th><th>MVP</th><th>Actions</th></tr></thead><tbody><tr><td colspan="6">Loading...</td></tr></tbody></table></div></section>`;
-    const form=document.getElementById('scrimForm'); document.getElementById('clearScrimForm')?.addEventListener('click',()=>{form.reset(); form.matchId.value='';});
-    UI.bindForm(form, async fd=>{ const body=Object.fromEntries(fd.entries()); body.participantIds = [...form.elements['participantIds'].selectedOptions].map(o=>o.value).join(','); const action=body.matchId?'updateMatch':'createMatch'; await API.call(action,body,{write:true}); UI.toast(body.matchId?'Scrim updated.':'Scrim saved.','success'); await Admin.matches(main); });
-    const matches=(await API.call('getMatches',{}, {method:'GET'})).matches||[]; const tbody=document.querySelector('#matchesTable tbody');
-    tbody.innerHTML=matches.map(m=>`<tr><td>${UI.date(m.matchDate)}</td><td>${UI.escape(m.opponent)}</td><td>${UI.escape(m.solosScore)} — ${UI.escape(m.opponentScore)}</td><td><span class="status ${String(m.result).toLowerCase()}">${UI.escape(m.result)}</span></td><td>${UI.escape(m.mvpName||'—')}</td><td><div class="actions"><button class="btn small ghost" type="button" data-edit-match="${UI.escape(m.matchId)}">Edit</button><button class="btn small danger" type="button" data-delete-match="${UI.escape(m.matchId)}" data-loading-text="Cancelling...">Cancel</button></div></td></tr>`).join('') || '<tr><td colspan="6">No battles recorded yet.</td></tr>';
+
+  Admin.matches = async function(main){
+    const users = safeList((await API.call('listUsers',{}, {method:'GET'})).users);
+    const options = memberOptions(users);
+    main.innerHTML = `<section class="grid two"><form class="card panel form-grid" id="scrimForm"><h2>Add Scrim Result</h2><input type="hidden" name="matchId" id="matchId"><div class="field"><label>Opponent</label><input name="opponent" required></div><div class="grid two"><div class="field"><label>Our score</label><input name="solosScore" type="number" min="0" required></div><div class="field"><label>Opponent score</label><input name="opponentScore" type="number" min="0" required></div></div><div class="grid two"><div class="field"><label>Date</label><input name="matchDate" type="date"></div><div class="field"><label>Time</label><input name="matchTime" type="time"></div></div><div class="grid two"><div class="field"><label>Game mode</label><select name="mode"><option>MP</option><option>BR</option><option>Scrim</option><option>Tournament</option></select></div><div class="field"><label>Map</label><input name="map" placeholder="Standoff, Firing Range..."></div></div><div class="field"><label>Participating players</label><select name="participantIds" multiple size="7" required>${options}</select><small class="muted">Hold Ctrl on Windows to pick more than one player.</small></div><div class="field"><label>MVP</label><select name="mvpUserId"><option value="">No MVP</option>${options}</select></div><div class="grid two"><div class="field"><label>Custom bonus per player</label><input name="customBonus" type="number" value="0"></div><div class="field"><label>Screenshot URL</label><input name="screenshotUrl" type="url"></div></div><div class="field"><label>Notes</label><textarea name="notes" placeholder="What happened in the lobby?"></textarea></div><button class="btn primary" type="submit" data-loading-text="Saving scrim...">Save Scrim Result</button><button class="btn ghost" type="button" id="clearScrimForm">Clear</button></form><section class="card panel"><h2>Scoring</h2><p class="muted">Save the scrim and the points update automatically.</p><div id="scoringBox" class="statline"><div><span class="muted">Win</span><strong>30</strong></div><div><span class="muted">Participation</span><strong>10</strong></div><div><span class="muted">MVP</span><strong>10</strong></div></div></section></section><section class="card panel" style="margin-top:16px"><h2>Scrim Results</h2><div class="table-wrap"><table class="data-table" id="matchesTable"><thead><tr><th>Date</th><th>Opponent</th><th>Score</th><th>Result</th><th>MVP</th><th>Actions</th></tr></thead><tbody><tr><td colspan="6">Loading...</td></tr></tbody></table></div></section>`;
+    const form = document.getElementById('scrimForm');
+    document.getElementById('clearScrimForm')?.addEventListener('click', () => { form.reset(); form.matchId.value = ''; });
+    UI.bindForm(form, async fd => { const body = Object.fromEntries(fd.entries()); body.participantIds = [...form.elements['participantIds'].selectedOptions].map(o => o.value).join(','); const action = body.matchId ? 'updateMatch' : 'createMatch'; await API.call(action,body,{write:true}); UI.toast(body.matchId ? 'Scrim updated.' : 'Scrim saved.','success'); await Admin.matches(main); });
+    const matches = safeList((await API.call('getMatches',{}, {method:'GET'})).matches);
+    const tbody = document.querySelector('#matchesTable tbody');
+    tbody.innerHTML = matches.map(m => `<tr><td>${UI.date(m.matchDate)}</td><td>${esc(m.opponent)}</td><td>${esc(m.solosScore)} — ${esc(m.opponentScore)}</td><td><span class="status ${statusClass(m.result)}">${esc(m.result)}</span></td><td>${esc(m.mvpName || '—')}</td><td><div class="actions"><button class="btn small ghost" type="button" data-edit-match="${esc(m.matchId)}">Edit</button><button class="btn small danger" type="button" data-delete-match="${esc(m.matchId)}" data-loading-text="Cancelling...">Cancel</button></div></td></tr>`).join('') || '<tr><td colspan="6">No battles recorded yet.</td></tr>';
     UI.tableCellLabels(document.getElementById('matchesTable'));
-    document.querySelectorAll('[data-edit-match]').forEach(b=>b.addEventListener('click',()=>{const m=matches.find(x=>x.matchId===b.dataset.editMatch); if(!m)return; form.matchId.value=m.matchId||''; form.opponent.value=m.opponent||''; form.solosScore.value=m.solosScore||0; form.opponentScore.value=m.opponentScore||0; form.matchDate.value=(m.matchDate||'').slice(0,10); form.matchTime.value=m.matchTime||''; form.mode.value=m.mode||'MP'; form.map.value=m.map||''; form.mvpUserId.value=m.mvpUserId||''; form.customBonus.value=0; form.screenshotUrl.value=m.screenshotUrl||''; form.notes.value=m.notes||''; const ids=String(m.participantIds||'').split(','); [...form.elements['participantIds'].options].forEach(o=>o.selected=ids.includes(o.value)); form.scrollIntoView({behavior:'smooth',block:'start'});}));
-    document.querySelectorAll('[data-delete-match]').forEach(b=>UI.bindButton(b,async()=>{ if(!confirm('Cancel this scrim and reverse its points?')) return; await API.call('deleteMatch',{matchId:b.dataset.deleteMatch},{write:true}); UI.toast('Scrim cancelled.','success'); await Admin.matches(main); }));
+    document.querySelectorAll('[data-edit-match]').forEach(b => b.addEventListener('click', () => { const m = matches.find(x => x.matchId === b.dataset.editMatch); if(!m) return; form.matchId.value=m.matchId||''; form.opponent.value=m.opponent||''; form.solosScore.value=m.solosScore||0; form.opponentScore.value=m.opponentScore||0; form.matchDate.value=(m.matchDate||'').slice(0,10); form.matchTime.value=m.matchTime||''; form.mode.value=m.mode||'MP'; form.map.value=m.map||''; form.mvpUserId.value=m.mvpUserId||''; form.customBonus.value=0; form.screenshotUrl.value=m.screenshotUrl||''; form.notes.value=m.notes||''; const ids=String(m.participantIds||'').split(','); [...form.elements['participantIds'].options].forEach(o => o.selected = ids.includes(o.value)); form.scrollIntoView({behavior:'smooth',block:'start'}); }));
+    document.querySelectorAll('[data-delete-match]').forEach(b => UI.bindButton(b, async () => { if(!confirm('Cancel this scrim and reverse its points?')) return; await API.call('deleteMatch',{matchId:b.dataset.deleteMatch},{write:true}); UI.toast('Scrim cancelled.','success'); await Admin.matches(main); }));
   };
-  Admin.news=async function(main){
-    main.innerHTML=`<section class="card panel"><form id="newsForm" class="form-grid"><h2>Clan News</h2><input type="hidden" name="newsId"><div class="field"><label>Title</label><input name="title" required></div><div class="field"><label>Category</label><input name="category" value="News"></div><div class="field"><label>Excerpt</label><input name="excerpt" maxlength="220"></div><div class="field"><label>Cover image URL</label><input name="coverImageUrl" type="url"></div><div class="field"><label>Story</label><textarea name="content" required></textarea></div><button class="btn primary" type="submit" data-loading-text="Publishing...">Save News</button><button class="btn ghost" id="clearNewsForm" type="button">Clear</button></form><div id="newsAdminList" style="margin-top:20px"></div></section>`;
-    const form=document.getElementById('newsForm'); UI.bindForm(form, async fd=>{const data=Object.fromEntries(fd.entries()); await API.call(data.newsId?'updateNews':'createNews',data,{write:true}); UI.toast('News saved.','success'); await Admin.news(main);}); document.getElementById('clearNewsForm')?.addEventListener('click',()=>form.reset());
-    const rows=(await API.call('getNews',{}, {method:'GET'})).news||[]; document.getElementById('newsAdminList').innerHTML=rows.map(n=>`<p><strong>${UI.escape(n.title)}</strong><br><span class="muted">${UI.date(n.createdAt)} · ${UI.escape(n.status)}</span><br><button class="btn small ghost" type="button" data-edit-news="${UI.escape(n.newsId)}">Edit</button> <button class="btn small danger" type="button" data-delete-news="${UI.escape(n.newsId)}" data-loading-text="Deleting...">Delete</button></p>`).join('')||UI.empty('Nothing new yet.');
-    document.querySelectorAll('[data-edit-news]').forEach(b=>b.addEventListener('click',()=>{const n=rows.find(x=>x.newsId===b.dataset.editNews); if(!n)return; form.newsId.value=n.newsId||''; form.title.value=n.title||''; form.category.value=n.category||''; form.excerpt.value=n.excerpt||''; form.coverImageUrl.value=n.coverImageUrl||''; form.content.value=n.content||''; form.scrollIntoView({behavior:'smooth',block:'start'});}));
-    document.querySelectorAll('[data-delete-news]').forEach(b=>UI.bindButton(b,async()=>{if(!confirm('Delete this news item?'))return; await API.call('deleteNews',{newsId:b.dataset.deleteNews},{write:true}); UI.toast('News deleted.','success'); await Admin.news(main);}));
+
+  Admin.news = async function(main){
+    main.innerHTML = `<section class="card panel"><form id="newsForm" class="form-grid"><h2>Clan News</h2><input type="hidden" name="newsId"><div class="field"><label>Title</label><input name="title" required></div><div class="field"><label>Category</label><input name="category" value="News"></div><div class="field"><label>Excerpt</label><input name="excerpt"></div><div class="field"><label>Cover image URL</label><input name="coverImageUrl" type="url"></div><div class="field"><label>Content</label><textarea name="content" required></textarea></div><button class="btn primary" type="submit" data-loading-text="Saving...">Save News</button><button class="btn ghost" id="clearNewsForm" type="button">Clear</button></form><div id="newsList" style="margin-top:20px"></div></section>`;
+    const form = document.getElementById('newsForm');
+    UI.bindForm(form, async fd => { const data = Object.fromEntries(fd.entries()); await API.call(data.newsId ? 'updateNews' : 'createNews', data, {write:true}); UI.toast('News saved.','success'); await Admin.news(main); });
+    document.getElementById('clearNewsForm')?.addEventListener('click', () => form.reset());
+    const rows = safeList((await API.call('getNews',{}, {method:'GET'})).news);
+    document.getElementById('newsList').innerHTML = rows.map(x => `<p><strong>${esc(x.title)}</strong><br><span class="muted">${UI.date(x.createdAt)}</span><br>${esc(x.excerpt || '')}<br><button class="btn small ghost" type="button" data-edit-news="${esc(x.newsId)}">Edit</button> <button class="btn small danger" type="button" data-delete-news="${esc(x.newsId)}" data-loading-text="Deleting...">Delete</button></p>`).join('') || UI.empty('Nothing new yet.');
+    document.querySelectorAll('[data-edit-news]').forEach(b => b.addEventListener('click', () => { const x = rows.find(r => r.newsId === b.dataset.editNews); if(!x) return; form.newsId.value=x.newsId||''; form.title.value=x.title||''; form.category.value=x.category||''; form.excerpt.value=x.excerpt||''; form.coverImageUrl.value=x.coverImageUrl||''; form.content.value=x.content||''; form.scrollIntoView({behavior:'smooth',block:'start'}); }));
+    document.querySelectorAll('[data-delete-news]').forEach(b => UI.bindButton(b, async () => { if(!confirm('Delete this news item?')) return; await API.call('deleteNews',{newsId:b.dataset.deleteNews},{write:true}); UI.toast('News deleted.','success'); await Admin.news(main); }));
   };
-  Admin.announcements=async function(main){
-    main.innerHTML=`<section class="card panel"><form id="announceForm" class="form-grid"><h2>Announcements</h2><input type="hidden" name="announcementId"><div class="field"><label>Title</label><input name="title" required></div><div class="field"><label>Message</label><textarea name="message" required></textarea></div><button class="btn primary" type="submit" data-loading-text="Posting...">Save Announcement</button><button class="btn ghost" id="clearAnnouncementForm" type="button">Clear</button></form><div id="announcementsList" style="margin-top:20px"></div></section>`;
-    const form=document.getElementById('announceForm'); UI.bindForm(form, async fd=>{const data=Object.fromEntries(fd.entries()); await API.call(data.announcementId?'updateAnnouncement':'createAnnouncement',data,{write:true}); UI.toast('Announcement saved.','success'); await Admin.announcements(main);}); document.getElementById('clearAnnouncementForm')?.addEventListener('click',()=>form.reset());
-    const rows=(await API.call('getAnnouncements',{}, {method:'GET'})).announcements||[]; document.getElementById('announcementsList').innerHTML=rows.map(x=>`<p><strong>${UI.escape(x.title)}</strong><br><span class="muted">${UI.date(x.createdAt)}</span><br>${UI.escape(x.message)}<br><button class="btn small ghost" type="button" data-edit-announcement="${UI.escape(x.announcementId)}">Edit</button> <button class="btn small danger" type="button" data-delete-announcement="${UI.escape(x.announcementId)}" data-loading-text="Deleting...">Delete</button></p>`).join('') || UI.empty('No announcements yet.');
-    document.querySelectorAll('[data-edit-announcement]').forEach(b=>b.addEventListener('click',()=>{const x=rows.find(r=>r.announcementId===b.dataset.editAnnouncement); if(!x)return; form.announcementId.value=x.announcementId||''; form.title.value=x.title||''; form.message.value=x.message||''; form.scrollIntoView({behavior:'smooth',block:'start'});}));
-    document.querySelectorAll('[data-delete-announcement]').forEach(b=>UI.bindButton(b,async()=>{if(!confirm('Delete this announcement?'))return; await API.call('deleteAnnouncement',{announcementId:b.dataset.deleteAnnouncement},{write:true}); UI.toast('Announcement deleted.','success'); await Admin.announcements(main);}));
+
+  Admin.announcements = async function(main){
+    main.innerHTML = `<section class="card panel"><form id="announceForm" class="form-grid"><h2>Announcements</h2><input type="hidden" name="announcementId"><div class="field"><label>Title</label><input name="title" required></div><div class="field"><label>Message</label><textarea name="message" required></textarea></div><button class="btn primary" type="submit" data-loading-text="Posting...">Save Announcement</button><button class="btn ghost" id="clearAnnouncementForm" type="button">Clear</button></form><div id="announcementsList" style="margin-top:20px"></div></section>`;
+    const form = document.getElementById('announceForm');
+    UI.bindForm(form, async fd => { const data = Object.fromEntries(fd.entries()); await API.call(data.announcementId ? 'updateAnnouncement' : 'createAnnouncement', data, {write:true}); UI.toast('Announcement saved.','success'); await Admin.announcements(main); });
+    document.getElementById('clearAnnouncementForm')?.addEventListener('click', () => form.reset());
+    const rows = safeList((await API.call('getAnnouncements',{}, {method:'GET'})).announcements);
+    document.getElementById('announcementsList').innerHTML = rows.map(x => `<p><strong>${esc(x.title)}</strong><br><span class="muted">${UI.date(x.createdAt)}</span><br>${esc(x.message)}<br><button class="btn small ghost" type="button" data-edit-announcement="${esc(x.announcementId)}">Edit</button> <button class="btn small danger" type="button" data-delete-announcement="${esc(x.announcementId)}" data-loading-text="Deleting...">Delete</button></p>`).join('') || UI.empty('No announcements yet.');
+    document.querySelectorAll('[data-edit-announcement]').forEach(b => b.addEventListener('click', () => { const x = rows.find(r => r.announcementId === b.dataset.editAnnouncement); if(!x) return; form.announcementId.value=x.announcementId||''; form.title.value=x.title||''; form.message.value=x.message||''; form.scrollIntoView({behavior:'smooth',block:'start'}); }));
+    document.querySelectorAll('[data-delete-announcement]').forEach(b => UI.bindButton(b, async () => { if(!confirm('Delete this announcement?')) return; await API.call('deleteAnnouncement',{announcementId:b.dataset.deleteAnnouncement},{write:true}); UI.toast('Announcement deleted.','success'); await Admin.announcements(main); }));
   };
-  Admin.chatModeration=async function(main){ main.innerHTML='<section class="card panel"><h2>Chat Moderation</h2><div id="chatMount"></div></section>'; window.SOLOS_CHAT.mount(document.getElementById('chatMount'), true); };
-  Admin.reports=async function(main){ const d=await API.call('adminDashboard',{}, {method:'GET'}); main.innerHTML=`<section class="card panel"><h2>Reports</h2><p class="muted">Current clan numbers.</p><pre class="mono" style="white-space:pre-wrap">${UI.escape(JSON.stringify(d.stats||{},null,2))}</pre></section>`; };
-  Admin.audit=async function(main,user){ if(user.role!=='SUPER_ADMIN'){ main.innerHTML=UI.empty('Only the Super Admin can open the audit log.'); return; } const res=await API.call('auditLogs',{}, {method:'GET'}); main.innerHTML=`<section class="card panel"><h2>Audit Log</h2>${(res.logs||[]).map(x=>`<p><strong>${UI.escape(x.action)}</strong> <span class="muted">${UI.date(x.createdAt)}</span><br>${UI.escape(x.actorName||'System')} → ${UI.escape(x.targetName||x.targetId||'')}<br><span class="muted">${UI.escape(x.details||'')}</span></p>`).join('') || UI.empty('No command activity yet.')}</section>`; };
-  Admin.permissions=async function(main,user){
-    if(user.role!=='SUPER_ADMIN'){ main.innerHTML=UI.empty('Only the Super Admin can manage permissions.'); return; }
-    const res=await API.call('getPermissions',{}, {method:'GET'}); const editable=(res.permissions||[]).filter(p=>!['SUPER_ADMIN','MEMBER'].includes(p.role));
-    main.innerHTML=`<section class="card panel"><h2>Leadership Permissions</h2><p class="muted">Give leadership only the control they need.</p><div class="grid two">${editable.map(p=>`<form class="card form-grid permission-form" data-role="${UI.escape(p.role)}"><h3>${UI.escape(p.role)}</h3><label><input type="checkbox" name="canManageMembers" ${String(p.canManageMembers).toLowerCase()==='true'?'checked':''}> Manage members</label><label><input type="checkbox" name="canManageRanking" ${String(p.canManageRanking).toLowerCase()==='true'?'checked':''}> Manage ranking</label><label><input type="checkbox" name="canManageMatches" ${String(p.canManageMatches).toLowerCase()==='true'?'checked':''}> Manage scrims</label><label><input type="checkbox" name="canManageNews" ${String(p.canManageNews).toLowerCase()==='true'?'checked':''}> Manage news</label><label><input type="checkbox" name="canModerateChat" ${String(p.canModerateChat).toLowerCase()==='true'?'checked':''}> Moderate chat</label><button class="btn primary" type="submit" data-loading-text="Saving...">Save</button></form>`).join('')}</div></section>`;
-    document.querySelectorAll('.permission-form').forEach(form=>UI.bindForm(form,async fd=>{const body=Object.fromEntries(fd.entries()); body.role=form.dataset.role; ['canManageMembers','canManageRanking','canManageMatches','canManageNews','canModerateChat','canManagePermissions'].forEach(k=>body[k]=body[k]?'true':'false'); await API.call('updatePermissions',body,{write:true}); UI.toast('Permissions saved.','success');}));
+
+  Admin.chatModeration = async function(main){ main.innerHTML = '<section class="card panel"><h2>Chat Moderation</h2><div id="chatMount"></div></section>'; window.SOLOS_CHAT.mount(document.getElementById('chatMount'), true); };
+  Admin.reports = async function(main){ const d = await API.call('adminDashboard',{}, {method:'GET'}); const s=d.stats||{}; main.innerHTML = `<section class="admin-panel-head"><span class="eyebrow">Reports</span><h2>Clan Numbers</h2><p>Current roster and scrim summary.</p></section><section class="stats-grid admin-stat-grid"><div class="card stat-card"><span>Members</span><strong>${n(s.totalMembers)}</strong></div><div class="card stat-card"><span>Wins</span><strong>${n(s.wins)}</strong></div><div class="card stat-card"><span>Losses</span><strong>${n(s.losses)}</strong></div><div class="card stat-card"><span>Win Rate</span><strong>${n(s.winRate)}%</strong></div></section>`; };
+  Admin.audit = async function(main,user){ if(user.role !== 'SUPER_ADMIN'){ main.innerHTML = UI.empty('Only the Super Admin can open the audit log.'); return; } const res = await API.call('auditLogs',{}, {method:'GET'}); main.innerHTML = `<section class="card panel"><h2>Audit Log</h2>${safeList(res.logs).map(x => `<p><strong>${esc(x.action)}</strong> <span class="muted">${UI.date(x.createdAt)}</span><br>${esc(x.actorName || 'System')} → ${esc(x.targetName || x.targetId || '')}<br><span class="muted">${esc(x.details || '')}</span></p>`).join('') || UI.empty('No audit records yet.')}</section>`; };
+  Admin.permissions = async function(main,user){
+    if(user.role !== 'SUPER_ADMIN'){ main.innerHTML = UI.empty('Only the Super Admin can manage permissions.'); return; }
+    const res = await API.call('getPermissions',{}, {method:'GET'});
+    const editable = safeList(res.permissions).filter(p => !['SUPER_ADMIN','MEMBER'].includes(p.role));
+    main.innerHTML = `<section class="card panel"><h2>Leadership Permissions</h2><p class="muted">Give leadership only the control they need.</p><div class="grid two">${editable.map(p => `<form class="card form-grid permission-form" data-role="${esc(p.role)}"><h3>${esc(p.role)}</h3><label><input type="checkbox" name="canManageMembers" ${String(p.canManageMembers).toLowerCase()==='true'?'checked':''}> Manage members</label><label><input type="checkbox" name="canManageRanking" ${String(p.canManageRanking).toLowerCase()==='true'?'checked':''}> Manage ranking</label><label><input type="checkbox" name="canManageMatches" ${String(p.canManageMatches).toLowerCase()==='true'?'checked':''}> Manage scrims</label><label><input type="checkbox" name="canManageNews" ${String(p.canManageNews).toLowerCase()==='true'?'checked':''}> Manage news</label><label><input type="checkbox" name="canModerateChat" ${String(p.canModerateChat).toLowerCase()==='true'?'checked':''}> Moderate chat</label><button class="btn primary" type="submit" data-loading-text="Saving...">Save</button></form>`).join('')}</div></section>`;
+    document.querySelectorAll('.permission-form').forEach(form => UI.bindForm(form, async fd => { const body=Object.fromEntries(fd.entries()); body.role=form.dataset.role; ['canManageMembers','canManageRanking','canManageMatches','canManageNews','canModerateChat','canManagePermissions'].forEach(k => body[k] = body[k] ? 'true' : 'false'); await API.call('updatePermissions',body,{write:true}); UI.toast('Permissions saved.','success'); }));
   };
-  Admin.settings=async function(main,user){
-    const superSettings = user.role==='SUPER_ADMIN' ? `<form id="clanSettingsForm" class="form-grid"><h2>Clan Settings</h2><div class="field"><label>Clan name</label><input name="clanName" value="${UI.escape(C.APP_NAME || 'SOLOS十ESPORTZ')}"></div><div class="field"><label>Clan tag</label><input name="clanTag" value="${UI.escape(C.CLAN_TAG || 'S²十')}"></div><div class="field"><label>WhatsApp community</label><input name="whatsappUrl" type="url" value="${UI.escape(C.SOCIALS?.whatsapp || '')}"></div><div class="field"><label>Tier thresholds JSON</label><textarea name="tierThresholdsJson">{"T1":0,"T2":500,"T3":1000,"T4":1500}</textarea></div><div class="field"><label>Scoring JSON</label><textarea name="scoringJson">{"WIN":30,"DRAW":15,"LOSS":5,"PARTICIPATION":10,"MVP":10}</textarea></div><button class="btn primary" type="submit" data-loading-text="Saving settings...">Save Clan Settings</button></form><hr style="border-color:var(--line);margin:24px 0">` : '';
-    main.innerHTML=`<section class="settings-layout"><nav class="settings-menu"><button class="active" type="button">Profile</button><button type="button">Security</button></nav><div class="card panel">${superSettings}<form id="profileForm" class="form-grid"><h2>Profile Settings</h2><div class="field"><label>Display name</label><input name="displayName" value="${UI.escape(user.displayName||'')}"></div><div class="field"><label>Profile picture</label><input name="avatarFile" id="profileAvatarFile" type="file" accept="image/png,image/jpeg,image/webp"></div><div class="field"><label>Bio</label><textarea name="bio">${UI.escape(user.bio||'')}</textarea></div><div class="field"><label>Country</label><input name="country" value="${UI.escape(user.country||'')}"></div><div class="field"><label>CODM Role</label><select name="playerRole"><option>${UI.escape(user.playerRole||'FLEX')}</option><option>IGL</option><option>SLAYER</option><option>SMG</option><option>AR</option><option>SNIPER</option><option>FLEX</option><option>SUPPORT</option><option>BR PLAYER</option><option>MP PLAYER</option></select></div><button class="btn primary" type="submit" data-loading-text="Saving...">Save Profile</button></form><hr style="border-color:var(--line);margin:24px 0"><form id="passwordForm" class="form-grid"><h2>Change Password</h2><div class="field"><label>Current password</label><input name="currentPassword" type="password" required></div><div class="field"><label>New password</label><input name="newPassword" type="password" required minlength="8"></div><div class="field"><label>Confirm new password</label><input name="confirmPassword" type="password" required minlength="8"></div><button class="btn primary" type="submit" data-loading-text="Updating password...">Change Password</button></form></div></section>`;
-    const clanForm=document.getElementById('clanSettingsForm'); if(clanForm) UI.bindForm(clanForm,async fd=>{await API.call('updateClanSettings',Object.fromEntries(fd.entries()),{write:true}); UI.toast('Clan settings saved.','success');});
-    UI.bindForm(document.getElementById('profileForm'),async fd=>{const body=Object.fromEntries(fd.entries()); const f=document.getElementById('profileAvatarFile')?.files?.[0]; if(f) body.avatarData=await window.SOLOS_MEMBER.fileToDataUrl(f); delete body.avatarFile; const res=await API.call('updateProfile',body,{write:true}); if(res.user){window.SOLOS_APP.user=res.user;} UI.toast('Profile saved.','success');});
-    UI.bindForm(document.getElementById('passwordForm'),async fd=>{const b=Object.fromEntries(fd.entries()); if(b.newPassword!==b.confirmPassword) throw new Error('Passwords do not match.'); await API.call('changePassword',b,{write:true}); UI.toast('Password changed.','success'); document.getElementById('passwordForm').reset();});
+  Admin.settings = async function(main,user){
+    const superSettings = user.role === 'SUPER_ADMIN' ? `<form id="clanSettingsForm" class="form-grid"><h2>Clan Settings</h2><div class="field"><label>Clan name</label><input name="clanName" value="${esc(C.APP_NAME || 'SOLOS十ESPORTZ')}"></div><div class="field"><label>Clan tag</label><input name="clanTag" value="${esc(C.CLAN_TAG || 'S²十')}"></div><div class="field"><label>WhatsApp community</label><input name="whatsappUrl" type="url" value="${esc(C.SOCIALS?.whatsapp || '')}"></div><div class="field"><label>Tier thresholds JSON</label><textarea name="tierThresholdsJson">{"T1":0,"T2":500,"T3":1000,"T4":1500}</textarea></div><div class="field"><label>Scoring JSON</label><textarea name="scoringJson">{"WIN":30,"DRAW":15,"LOSS":5,"PARTICIPATION":10,"MVP":10}</textarea></div><button class="btn primary" type="submit" data-loading-text="Saving settings...">Save Clan Settings</button></form><hr style="border-color:var(--line);margin:24px 0">` : '';
+    main.innerHTML = `<section class="settings-layout"><nav class="settings-menu"><button class="active" type="button">Profile</button><button type="button">Security</button></nav><div class="card panel">${superSettings}<form id="profileForm" class="form-grid"><h2>Profile Settings</h2><div class="field"><label>Display name</label><input name="displayName" value="${esc(user.displayName || '')}"></div><div class="field"><label>Profile picture</label><input name="avatarFile" id="profileAvatarFile" type="file" accept="image/png,image/jpeg,image/webp"></div><div class="field"><label>Bio</label><textarea name="bio">${esc(user.bio || '')}</textarea></div><div class="field"><label>Country</label><input name="country" value="${esc(user.country || '')}"></div><div class="field"><label>CODM Role</label><select name="playerRole"><option>${esc(user.playerRole || 'FLEX')}</option><option>IGL</option><option>SLAYER</option><option>SMG</option><option>AR</option><option>SNIPER</option><option>FLEX</option><option>SUPPORT</option><option>BR PLAYER</option><option>MP PLAYER</option></select></div><button class="btn primary" type="submit" data-loading-text="Saving...">Save Profile</button></form><hr style="border-color:var(--line);margin:24px 0"><form id="passwordForm" class="form-grid"><h2>Change Password</h2><div class="field"><label>Current password</label><input name="currentPassword" type="password" required></div><div class="field"><label>New password</label><input name="newPassword" type="password" required minlength="8"></div><div class="field"><label>Confirm new password</label><input name="confirmPassword" type="password" required minlength="8"></div><button class="btn primary" type="submit" data-loading-text="Updating password...">Change Password</button></form></div></section>`;
+    const clanForm = document.getElementById('clanSettingsForm');
+    if(clanForm) UI.bindForm(clanForm, async fd => { await API.call('updateClanSettings',Object.fromEntries(fd.entries()),{write:true}); UI.toast('Clan settings saved.','success'); });
+    UI.bindForm(document.getElementById('profileForm'), async fd => { const body = Object.fromEntries(fd.entries()); const f=document.getElementById('profileAvatarFile')?.files?.[0]; if(f) body.avatarData = await window.SOLOS_MEMBER.fileToDataUrl(f); delete body.avatarFile; const res = await API.call('updateProfile',body,{write:true}); if(res.user){ window.SOLOS_APP.user = res.user; } UI.toast('Profile saved.','success'); });
+    UI.bindForm(document.getElementById('passwordForm'), async fd => { const b=Object.fromEntries(fd.entries()); if(b.newPassword !== b.confirmPassword) throw new Error('Passwords do not match.'); await API.call('changePassword',b,{write:true}); UI.toast('Password changed.','success'); document.getElementById('passwordForm').reset(); });
   };
-  window.SOLOS_ADMIN=Admin;
+
+  window.SOLOS_ADMIN = Admin;
 })();

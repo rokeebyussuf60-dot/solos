@@ -3,15 +3,23 @@
   const App={user:null,route:'dashboard',routing:false};
 
   const navs={
-    SUPER_ADMIN:[['dashboard','Dashboard'],['members','Members'],['ranking','Rankings'],['matches','Scrims'],['news','News'],['announcements','Announcements'],['chat','Chat'],['reports','Reports'],['audit','Audit Logs'],['permissions','Permissions'],['settings','Settings'],['site','Back to Site']],
-    ADMIN:[['dashboard','Dashboard'],['members','Members'],['ranking','Rankings'],['matches','Scrims'],['news','News'],['announcements','Announcements'],['chat','Chat'],['reports','Reports'],['settings','Settings'],['site','Back to Site']],
-    MEMBER:[['dashboard','Dashboard'],['profile','Profile'],['rank','My Rank'],['matches','Match History'],['community','Clan Room'],['notifications','Notifications'],['settings','Settings'],['site','Back to Site']]
+    SUPER_ADMIN:[['dashboard','Stats'],['members','Members'],['content','Content'],['feed','Feed'],['ranking','Rankings'],['matches','Scrims'],['news','News'],['announcements','Announcements'],['chat','Chat'],['reports','Reports'],['audit','Audit Logs'],['permissions','Permissions'],['settings','Settings'],['site','Back to Site']],
+    ADMIN:[['dashboard','Stats'],['members','Members'],['content','Content'],['feed','Feed'],['ranking','Rankings'],['matches','Scrims'],['news','News'],['announcements','Announcements'],['chat','Chat'],['reports','Reports'],['settings','Settings'],['site','Back to Site']],
+    MEMBER:[['dashboard','Dashboard'],['profile','Profile'],['rank','My Rank'],['matches','Match History'],['community','Clan Room'],['notifications','Notifications'],['settings','Settings']]
   };
+
   const mobilePrimary={
-    SUPER_ADMIN:[['site','Home'],['dashboard','Admin'],['members','Members'],['matches','Scrims'],['more','More']],
-    ADMIN:[['site','Home'],['dashboard','HQ'],['members','Members'],['matches','Scrims'],['more','More']],
-    MEMBER:[['site','Home'],['dashboard','Dashboard'],['profile','Profile'],['community','Chat'],['more','More']]
+    SUPER_ADMIN:[['dashboard','Stats'],['members','Members'],['content','Content'],['feed','Feed'],['settings','Settings']],
+    ADMIN:[['dashboard','Stats'],['members','Members'],['content','Content'],['feed','Feed'],['settings','Settings']],
+    MEMBER:[['dashboard','Dashboard'],['profile','Profile'],['rank','Rank'],['community','Chat'],['more','More']]
   };
+
+  const allowedRoutes={
+    SUPER_ADMIN:new Set(['dashboard','members','content','feed','ranking','matches','news','announcements','chat','reports','audit','permissions','settings','site']),
+    ADMIN:new Set(['dashboard','members','content','feed','ranking','matches','news','announcements','chat','reports','settings','site']),
+    MEMBER:new Set(['dashboard','profile','rank','stats','matches','community','notifications','settings'])
+  };
+
   function roleGroup(u){
     const r=String(u?.role||'').toUpperCase();
     const cr=String(u?.clanRole||'').toUpperCase();
@@ -23,7 +31,7 @@
   function cleanRoute(route){
     route=String(route||'dashboard').replace('#','').trim() || 'dashboard';
     if(['login','signin','sign-in','forgot','auth'].includes(route)) return 'dashboard';
-    if(['admin','admin-dashboard','super-admin-dashboard','management-dashboard','member-dashboard'].includes(route)) return 'dashboard';
+    if(['admin','admin-dashboard','super-admin-dashboard','management-dashboard','member-dashboard','player-dashboard','my-dashboard'].includes(route)) return 'dashboard';
     if(route==='scrims') return 'matches';
     if(route==='leaderboard') return 'ranking';
     return route;
@@ -33,6 +41,20 @@
     if(user.role==='SUPER_ADMIN' || user.isClanMember==='NO') return user.displayName || user.username || 'Super Admin';
     return user.clanDisplayName || `${C.CLAN_TAG} ${user.displayName || user.username || ''}`;
   }
+  function setPrivateMemberShell(group){
+    const isMember = group === 'MEMBER';
+    document.body.classList.toggle('member-private-shell', isMember);
+    document.querySelectorAll('.sidebar-footer a[href="index.html"], .app-drawer-panel a[href="index.html"]').forEach(a=>{
+      a.hidden = isMember;
+      a.setAttribute('aria-hidden', isMember ? 'true' : 'false');
+      a.tabIndex = isMember ? -1 : 0;
+    });
+    document.querySelectorAll('.side-brand').forEach(a=>{
+      if(isMember){ a.setAttribute('href','#dashboard'); a.dataset.route='dashboard'; }
+      else { a.setAttribute('href','index.html'); a.removeAttribute('data-route'); }
+    });
+  }
+
   App.boot=function(user){
     App.user=user;
     try{
@@ -43,20 +65,23 @@
     document.getElementById('authScreen')?.classList.add('hidden');
     document.getElementById('appShell')?.classList.remove('hidden');
     const group=roleGroup(user);
+    setPrivateMemberShell(group);
     document.getElementById('rolePill').textContent = group==='SUPER_ADMIN' ? 'Super Admin' : (group==='ADMIN' ? (user.clanRole || user.role || 'Leadership') : 'Member');
     document.getElementById('sessionLabel').textContent = displayName(user);
     App.renderNav();
     const route = cleanRoute(location.hash || 'dashboard');
     App.navigate(route, true);
   };
+
   App.renderNav=function(){
     const group=roleGroup(App.user);
     const items = group==='SUPER_ADMIN' ? navs.SUPER_ADMIN : (group==='ADMIN' ? navs.ADMIN : navs.MEMBER);
     const html = items.map(([id,label])=> id==='site' ? `<a href="index.html" data-route-link="site">${label}</a>` : `<button type="button" data-route="${id}">${label}</button>`).join('');
     ['sideNav','mobileSideNav'].forEach(id=>{ const el=document.getElementById(id); if(el) el.innerHTML=html; });
-    document.querySelectorAll('[data-route]').forEach(b=>{ if(b.dataset.bound==='1') return; b.dataset.bound='1'; b.addEventListener('click',()=>App.navigate(b.dataset.route)); });
+    document.querySelectorAll('[data-route]').forEach(b=>{ if(b.dataset.bound==='1') return; b.dataset.bound='1'; b.addEventListener('click',e=>{ e.preventDefault(); App.navigate(b.dataset.route); }); });
     App.renderMobileDock(items, group);
   };
+
   App.renderMobileDock=function(allItems, group){
     document.querySelector('.mobile-app-dock')?.remove();
     document.querySelector('.mobile-app-sheet')?.remove();
@@ -72,7 +97,7 @@
     document.body.appendChild(dock);
     const sheet=document.createElement('div');
     sheet.className='mobile-app-sheet';
-    sheet.innerHTML=`<div class="mobile-menu-card" role="dialog" aria-label="Dashboard menu"><div class="mobile-menu-head"><strong>${group==='SUPER_ADMIN'?'Clan Panel':'SOLOS十'}</strong><button type="button" class="btn ghost small" data-app-more-close>Close</button></div><div class="mobile-menu-grid">${allItems.map(([id,label])=> id==='site' ? `<a href="index.html">${label}</a>` : `<button type="button" data-mobile-route="${id}">${label}</button>`).join('')}<button type="button" data-app-logout>Logout</button></div></div>`;
+    sheet.innerHTML=`<div class="mobile-menu-card" role="dialog" aria-label="Dashboard menu"><div class="mobile-menu-head"><strong>${group==='MEMBER'?'My Locker':'SOLOS十 Clan Panel'}</strong><button type="button" class="btn ghost small" data-app-more-close>Close</button></div><div class="mobile-menu-grid">${allItems.map(([id,label])=> id==='site' ? `<a href="index.html">${label}</a>` : `<button type="button" data-mobile-route="${id}">${label}</button>`).join('')}<button type="button" data-app-logout>Logout</button></div></div>`;
     document.body.appendChild(sheet);
     document.querySelectorAll('[data-mobile-route]').forEach(b=>b.addEventListener('click',()=>{ sheet.classList.remove('open'); App.navigate(b.dataset.mobileRoute); }));
     document.querySelectorAll('[data-app-more]').forEach(b=>b.addEventListener('click',()=>sheet.classList.add('open')));
@@ -80,23 +105,43 @@
     sheet.addEventListener('click',e=>{ if(e.target===sheet) sheet.classList.remove('open'); });
     document.querySelectorAll('[data-app-logout]').forEach(b=>b.addEventListener('click',()=>window.SOLOS_AUTH.logout()));
   };
+
   App.updateMobileActive=function(){
     document.querySelectorAll('[data-mobile-route]').forEach(b=>b.classList.toggle('active', b.dataset.mobileRoute===App.route));
   };
+
   App.renderAccessDenied=function(main, message){
-    main.innerHTML=`<section class="card panel access-denied"><span class="eyebrow">Access denied</span><h2>You do not have permission for this room.</h2><p class="muted">${UI.escape(message || 'Use the right account or return to the main website.')}</p><div class="hero-actions"><a class="btn primary" href="index.html">Back to site</a><button class="btn ghost" type="button" onclick="SOLOS_APP.navigate('dashboard', true)">Go to dashboard</button></div></section>`;
+    const group = roleGroup(App.user);
+    const memberActions = `<button class="btn primary" type="button" onclick="SOLOS_APP.navigate('dashboard', true)">Go to dashboard</button><button class="btn ghost" type="button" onclick="SOLOS_AUTH.logout()">Logout</button>`;
+    const adminActions = `<a class="btn primary" href="index.html">Back to site</a><button class="btn ghost" type="button" onclick="SOLOS_APP.navigate('dashboard', true)">Go to dashboard</button>`;
+    main.innerHTML=`<section class="card panel access-denied"><span class="eyebrow">Access denied</span><h2>You do not have permission for this room.</h2><p class="muted">${UI.escape(message || 'Use the right account for this action.')}</p><div class="hero-actions">${group==='MEMBER' ? memberActions : adminActions}</div></section>`;
   };
+
   App.navigate=async function(route, replace=false){
     if(!App.user) return;
     route=cleanRoute(route);
-    if(route==='site'){ window.location.href='index.html'; return; }
+    const group=roleGroup(App.user);
+    if(route==='site'){
+      if(group==='MEMBER') return window.SOLOS_AUTH.logout();
+      window.location.href='index.html';
+      return;
+    }
+    const allowed = allowedRoutes[group] || allowedRoutes.MEMBER;
+    if(!allowed.has(route)){
+      App.route='dashboard';
+      if(replace) history.replaceState({route:'dashboard'}, '', '#dashboard'); else history.pushState({route:'dashboard'}, '', '#dashboard');
+      const main=document.getElementById('appMain');
+      document.getElementById('pageTitle').textContent='Access Denied';
+      if(main) App.renderAccessDenied(main, 'That action is not available for your account.');
+      return;
+    }
     App.route=route; App.routing=true;
     if(replace) history.replaceState({route}, '', '#'+route); else if(cleanRoute(location.hash)!==route) history.pushState({route}, '', '#'+route);
     document.getElementById('appDrawer')?.classList.remove('open');
     document.querySelector('.mobile-app-sheet')?.classList.remove('open');
     document.querySelectorAll('[data-route]').forEach(b=>b.classList.toggle('active',b.dataset.route===route));
     App.updateMobileActive();
-    const title = route==='dashboard' && App.user?.role==='SUPER_ADMIN' ? 'Command Center' : route.split('/')[0].replace(/[-_]/g,' ').replace(/\b\w/g,c=>c.toUpperCase());
+    const title = route==='dashboard' ? 'Clan Panel' : route.split('/')[0].replace(/[-_]/g,' ').replace(/\b\w/g,c=>c.toUpperCase());
     document.getElementById('pageTitle').textContent=title;
     const main=document.getElementById('appMain');
     if(!main) return;
@@ -110,6 +155,7 @@
     App.routing=false;
   };
   App.refresh=()=>App.navigate(App.route, true);
+
   document.addEventListener('DOMContentLoaded',()=>{
     UI.bindButton(document.getElementById('logoutBtn'),()=>window.SOLOS_AUTH.logout());
     UI.bindButton(document.getElementById('mobileLogoutBtn'),()=>window.SOLOS_AUTH.logout());
@@ -118,6 +164,8 @@
     document.getElementById('closeAppMenu')?.addEventListener('click',()=>document.getElementById('appDrawer')?.classList.remove('open'));
     document.getElementById('appDrawer')?.addEventListener('click',e=>{ if(e.target.id==='appDrawer') e.currentTarget.classList.remove('open'); });
     window.addEventListener('hashchange',()=>{ const next=cleanRoute(location.hash||'dashboard'); if(App.user && next!==App.route) App.navigate(next,true); });
+    window.addEventListener('popstate',()=>{ const next=cleanRoute(location.hash||'dashboard'); if(App.user && next!==App.route) App.navigate(next,true); });
   });
+
   window.SOLOS_APP=App;
 })();
