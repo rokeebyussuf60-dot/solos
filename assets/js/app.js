@@ -61,6 +61,7 @@
       const session=API.getSession() || {};
       API.saveSession({...session, role:user.role, clanRole:user.clanRole, user:{role:user.role, clanRole:user.clanRole, username:user.username, displayName:user.displayName}}, false);
     }catch(err){}
+    API.call('getSettings',{}, {method:'GET'}).catch(()=>null);
     document.body.classList.add('is-authenticated');
     document.getElementById('authScreen')?.classList.add('hidden');
     document.getElementById('appShell')?.classList.remove('hidden');

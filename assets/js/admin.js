@@ -121,46 +121,174 @@
   };
 
   Admin.members = async function(main,user){
+    const canChangeRoles = canSuper(user);
     main.innerHTML = `
-      <section class="card panel admin-members-panel">
-        <div class="section-row"><div><h2 id="membersTitle">Members</h2><p class="muted">Search the roster, open a player card and take action where your role allows.</p></div><button class="btn ghost" id="reloadMembers" type="button" data-loading-text="Refreshing...">Refresh</button></div>
-        <div class="filters admin-member-filters"><input id="memberSearch" placeholder="Search members..."><select id="memberStatus"><option value="">All statuses</option><option>PENDING</option><option>APPROVED</option><option>REJECTED</option><option>SUSPENDED</option><option>INACTIVE</option></select><select id="memberRole"><option value="">All roles</option><option>MEMBER</option><option>MANAGEMENT</option><option>CO_LEADER</option><option>CLAN_MASTER</option></select></div>
+      <section class="card panel admin-members-panel member-manager">
+        <div class="section-row member-manager-head">
+          <div><h2 id="membersTitle">Members</h2><p class="muted">Add players, update roster data and keep rankings clean.</p></div>
+          <div class="member-manager-actions">
+            <button class="btn cyan" id="addMemberBtn" type="button">+ Add Member</button>
+            <button class="btn ghost" id="importMembersBtn" type="button">Import Members</button>
+            <button class="btn ghost" id="reloadMembers" type="button" data-loading-text="Refreshing...">Refresh</button>
+          </div>
+        </div>
+        <div class="filters admin-member-filters">
+          <input id="memberSearch" placeholder="Search members...">
+          <select id="memberStatus"><option value="">All statuses</option><option>ACTIVE</option><option>APPROVED</option><option>PENDING</option><option>SUSPENDED</option><option>INACTIVE</option></select>
+          <select id="memberRole"><option value="">All roles</option><option>MEMBER</option><option>MANAGEMENT</option><option>CO_LEADER</option><option>CLAN_MASTER</option></select>
+        </div>
         <div class="admin-member-cards" id="memberCards"></div>
-        <div class="table-wrap admin-member-table"><table class="data-table" id="membersTable"><thead><tr><th>Player</th><th>Email</th><th>Clan Role</th><th>CODM Role</th><th>Tier</th><th>Score</th><th>Status</th><th>Actions</th></tr></thead><tbody><tr><td colspan="8">Loading...</td></tr></tbody></table></div>
-      </section>`;
-    function roleSelect(u){
-      if(!canSuper(user)) return '';
-      return `<select data-role-user="${esc(u.userId)}" class="mini-select" aria-label="Change clan role for ${esc(playerName(u))}">${CLAN_ROLES.map(r => `<option ${clanRole(u)===r || u.role===r ? 'selected' : ''}>${r}</option>`).join('')}</select>`;
+        <div class="table-wrap admin-member-table"><table class="data-table" id="membersTable"><thead><tr><th>Player</th><th>CODM UID</th><th>Clan Role</th><th>Tier</th><th>Points</th><th>K/D</th><th>Status</th><th>Actions</th></tr></thead><tbody><tr><td colspan="8">Loading...</td></tr></tbody></table></div>
+      </section>
+      <div class="admin-modal" id="memberFormModal" aria-hidden="true">
+        <div class="admin-modal-card member-form-card">
+          <div class="modal-head"><div><span class="eyebrow">Roster</span><h2 id="memberFormTitle">Add Member</h2></div><button type="button" class="btn ghost small" data-close-member-form>Close</button></div>
+          <form id="memberForm" class="member-form-grid">
+            <input type="hidden" name="userId" id="memberUserId">
+            <label>Username / IGN<input name="username" id="memberUsername" required autocomplete="off"></label>
+            <label>CODM UID<input name="codmUid" id="memberCodmUid" autocomplete="off"></label>
+            <label>Profile Picture<input name="profilePictureFile" id="memberImageFile" type="file" accept="image/jpeg,image/png,image/webp"></label>
+            <div class="member-image-preview"><div class="avatar large-avatar" id="memberImagePreview">S²</div><small>JPG, PNG or WebP. Keep it clean.</small></div>
+            <label>Clan Role<select name="role" id="memberClanRole"><option>MEMBER</option><option>MANAGEMENT</option><option>CO_LEADER</option><option>CLAN_MASTER</option></select></label>
+            <label>Competitive Tier<select name="tier" id="memberTier"><option>T1</option><option>T2</option><option>T3</option><option>T4</option></select></label>
+            <label>Status<select name="status" id="memberStatusInput"><option>ACTIVE</option><option>SUSPENDED</option><option>INACTIVE</option><option>PENDING</option></select></label>
+            <label>Kills<input name="kills" id="memberKills" type="number" min="0" value="0"></label>
+            <label>Deaths<input name="deaths" id="memberDeaths" type="number" min="0" value="0"></label>
+            <label>Wins<input name="wins" id="memberWins" type="number" min="0" value="0"></label>
+            <label>Losses<input name="losses" id="memberLosses" type="number" min="0" value="0"></label>
+            <label>Points<input name="points" id="memberPoints" type="number" min="0" value="0"></label>
+            <label>MVPs<input name="mvps" id="memberMvps" type="number" min="0" value="0"></label>
+            <label>Scrim Wins<input name="scrimWins" id="memberScrimWins" type="number" min="0" value="0"></label>
+            <label>Tournament Wins<input name="tournamentWins" id="memberTournamentWins" type="number" min="0" value="0"></label>
+            <label>Activity<select name="activity" id="memberActivity"><option>ACTIVE</option><option>LOW</option><option>INACTIVE</option></select></label>
+            <label>Join Date<input name="joinDate" id="memberJoinDate" type="date"></label>
+            <label class="wide">Bio / Notes<textarea name="bio" id="memberBio" rows="3"></textarea></label>
+            <div class="wide form-actions"><button class="btn primary" type="submit" data-loading-text="Saving...">Save Member</button></div>
+          </form>
+        </div>
+      </div>
+      <div class="admin-modal" id="importMembersModal" aria-hidden="true">
+        <div class="admin-modal-card import-card">
+          <div class="modal-head"><div><span class="eyebrow">Bulk Roster</span><h2>Import Members</h2></div><button type="button" class="btn ghost small" data-close-import>Close</button></div>
+          <p class="muted">CSV columns: username,codmUid,role,tier,status,kills,deaths,wins,losses,points,mvps,scrimWins,tournamentWins,activity</p>
+          <input id="membersCsvFile" type="file" accept=".csv,text/csv">
+          <label class="import-update-toggle"><input id="updateExistingMembers" type="checkbox"> Update existing members with matching CODM UID</label>
+          <div id="importSummary" class="import-summary empty">Choose a CSV file to preview.</div>
+          <div class="table-wrap import-preview-wrap"><table class="data-table" id="importPreview"><thead><tr><th>Row</th><th>Username</th><th>CODM UID</th><th>Status</th><th>Issues</th></tr></thead><tbody></tbody></table></div>
+          <div class="form-actions"><button class="btn primary" id="confirmImportMembers" type="button" disabled data-loading-text="Importing...">Confirm Import</button></div>
+        </div>
+      </div>`;
+
+    let currentUsers = [];
+    let importRows = [];
+    let imageData = '';
+    let lastImportFile = null;
+
+    const getVal = id => document.getElementById(id)?.value || '';
+    const setVal = (id,v) => { const el=document.getElementById(id); if(el) el.value = v ?? ''; };
+    const modal = document.getElementById('memberFormModal');
+    const importModal = document.getElementById('importMembersModal');
+    const openModal = el => { el?.classList.add('open'); el?.setAttribute('aria-hidden','false'); };
+    const closeModal = el => { el?.classList.remove('open'); el?.setAttribute('aria-hidden','true'); };
+    const kd = u => n(u.deaths) ? (n(u.kills)/n(u.deaths)).toFixed(2) : (n(u.kills) ? n(u.kills).toFixed(2) : '0.00');
+
+    function normalizeStatus(s){ return String(s || '').toUpperCase() === 'APPROVED' ? 'ACTIVE' : String(s || 'ACTIVE').toUpperCase(); }
+    function fillForm(u={}){
+      document.getElementById('memberFormTitle').textContent = u.userId ? 'Edit Member' : 'Add Member';
+      setVal('memberUserId', u.userId || '');
+      setVal('memberUsername', u.username || u.displayName || '');
+      setVal('memberCodmUid', u.codmUid || '');
+      setVal('memberClanRole', clanRole(u) || 'MEMBER');
+      setVal('memberTier', u.tier || 'T1');
+      setVal('memberStatusInput', normalizeStatus(u.status || 'ACTIVE'));
+      setVal('memberKills', u.kills || 0);
+      setVal('memberDeaths', u.deaths || 0);
+      setVal('memberWins', u.wins || 0);
+      setVal('memberLosses', u.losses || 0);
+      setVal('memberPoints', u.score || u.points || 0);
+      setVal('memberMvps', u.mvps || 0);
+      setVal('memberScrimWins', u.scrimWins || 0);
+      setVal('memberTournamentWins', u.tournamentWins || 0);
+      setVal('memberActivity', u.activity || 'ACTIVE');
+      setVal('memberJoinDate', (u.joinDate || u.createdAt || '').slice(0,10));
+      setVal('memberBio', u.bio || u.notes || '');
+      imageData = u.profileImage || u.avatarUrl || '';
+      const preview = document.getElementById('memberImagePreview');
+      if(preview){
+        preview.outerHTML = imageData ? `<img class="avatar avatar-img large-avatar" id="memberImagePreview" src="${esc(imageData)}" alt="Profile preview">` : `<div class="avatar large-avatar" id="memberImagePreview">${esc((u.displayName || u.username || 'S²').slice(0,2).toUpperCase())}</div>`;
+      }
+      if(!canChangeRoles) document.getElementById('memberClanRole')?.setAttribute('disabled','disabled');
+      else document.getElementById('memberClanRole')?.removeAttribute('disabled');
     }
     function actionButtons(u){
-      return `<div class="actions admin-card-actions"><button class="btn small cyan" data-approve="${esc(u.userId)}" type="button" data-loading-text="Approving...">Approve</button><button class="btn small ghost" data-reject="${esc(u.userId)}" type="button" data-loading-text="Rejecting...">Reject</button><button class="btn small danger" data-suspend="${esc(u.userId)}" type="button" data-loading-text="Suspending...">Suspend</button><button class="btn small ghost" data-reactivate="${esc(u.userId)}" type="button" data-loading-text="Reactivating...">Reactivate</button>${roleSelect(u)}</div>`;
+      const active = ['APPROVED','ACTIVE'].includes(String(u.status).toUpperCase());
+      return `<div class="actions admin-card-actions"><button class="btn small cyan" data-edit-member="${esc(u.userId)}" type="button">Edit</button>${active ? `<button class="btn small danger" data-suspend="${esc(u.userId)}" type="button" data-loading-text="Suspending...">Suspend</button>` : `<button class="btn small ghost" data-reactivate="${esc(u.userId)}" type="button" data-loading-text="Reactivating...">Reactivate</button>`}</div>`;
     }
     function memberCard(u, rank){
-      return `<details class="admin-member-card"><summary><div class="member-summary-left">${avatar(u,'small-avatar')}<div><strong>${esc(playerName(u))}</strong><span>${esc(u.status || '')} · ${esc(clanRole(u))}</span></div></div><span class="chev">⌄</span></summary><div class="member-detail-grid"><div>${avatar(u,'large-avatar')}</div><dl><dt>Username</dt><dd>${esc(u.username || '—')}</dd><dt>CODM UID</dt><dd>${esc(u.codmUid || '—')}</dd><dt>Clan role</dt><dd>${esc(clanRole(u))}</dd><dt>Tier</dt><dd>${esc(u.tier || 'T1')}</dd><dt>Score</dt><dd>${esc(u.score || 0)} XP</dd><dt>Rank</dt><dd>${rank ? '#' + rank : '—'}</dd><dt>Wins</dt><dd>${esc(u.wins || 0)}</dd><dt>Losses</dt><dd>${esc(u.losses || 0)}</dd><dt>Win rate</dt><dd>${winRate(u)}%</dd><dt>MVPs</dt><dd>${esc(u.mvps || 0)}</dd><dt>Joined</dt><dd>${UI.date(u.createdAt)}</dd></dl></div>${actionButtons(u)}</details>`;
+      return `<details class="admin-member-card"><summary><div class="member-summary-left">${avatar(u,'small-avatar')}<div><strong>${esc(playerName(u))}</strong><span>${esc(normalizeStatus(u.status))} · ${esc(clanRole(u))}</span></div></div><span class="chev">⌄</span></summary><div class="member-detail-grid"><div>${avatar(u,'large-avatar')}</div><dl><dt>Username</dt><dd>${esc(u.username || '—')}</dd><dt>CODM UID</dt><dd>${esc(u.codmUid || '—')}</dd><dt>Clan role</dt><dd>${esc(clanRole(u))}</dd><dt>Tier</dt><dd>${esc(u.tier || 'T1')}</dd><dt>Points</dt><dd>${esc(u.score || 0)} XP</dd><dt>Rank</dt><dd>${rank ? '#' + rank : '—'}</dd><dt>Kills</dt><dd>${esc(u.kills || 0)}</dd><dt>Deaths</dt><dd>${esc(u.deaths || 0)}</dd><dt>K/D</dt><dd>${kd(u)}</dd><dt>Wins</dt><dd>${esc(u.wins || 0)}</dd><dt>Losses</dt><dd>${esc(u.losses || 0)}</dd><dt>Win rate</dt><dd>${winRate(u)}%</dd><dt>MVPs</dt><dd>${esc(u.mvps || 0)}</dd><dt>Scrim W</dt><dd>${esc(u.scrimWins || 0)}</dd><dt>Tourn W</dt><dd>${esc(u.tournamentWins || 0)}</dd><dt>Activity</dt><dd>${esc(u.activity || '—')}</dd><dt>Joined</dt><dd>${UI.date(u.joinDate || u.createdAt)}</dd></dl></div>${actionButtons(u)}</details>`;
     }
     async function load(){
       const res = await API.call('listUsers',{}, {method:'GET'});
       const q = (document.getElementById('memberSearch')?.value || '').toLowerCase();
       const st = document.getElementById('memberStatus')?.value || '';
       const role = document.getElementById('memberRole')?.value || '';
-      const all = safeList(res.users).filter(u => u.role !== 'SUPER_ADMIN' && u.isClanMember === 'YES');
-      const ranked = [...all].sort((a,b) => n(b.score)-n(a.score)).map((u,i) => [u.userId, i+1]);
+      currentUsers = safeList(res.users).filter(u => u.role !== 'SUPER_ADMIN' && u.isClanMember === 'YES');
+      const ranked = [...currentUsers].sort((a,b) => n(b.score)-n(a.score)).map((u,i) => [u.userId, i+1]);
       const rankMap = Object.fromEntries(ranked);
-      const rows = all.filter(u => (!st || u.status === st) && (!role || clanRole(u) === role || u.role === role) && (!q || `${u.username} ${u.displayName} ${u.email} ${u.clanDisplayName} ${u.codmUid}`.toLowerCase().includes(q)));
+      const rows = currentUsers.filter(u => (!st || normalizeStatus(u.status) === st || u.status === st) && (!role || clanRole(u) === role || u.role === role) && (!q || `${u.username} ${u.displayName} ${u.email} ${u.clanDisplayName} ${u.codmUid}`.toLowerCase().includes(q)));
       const title = document.getElementById('membersTitle'); if(title) title.textContent = `Members (${rows.length})`;
       const tbody = document.querySelector('#membersTable tbody');
-      tbody.innerHTML = rows.map(u => `<tr><td>${avatar(u,'small-avatar')} <strong>${esc(playerName(u))}</strong><br><span class="muted">${esc(u.username || '')}</span></td><td>${esc(u.email || '')}</td><td>${esc(clanRole(u))}</td><td>${esc(u.playerRole || '—')}</td><td>${esc(u.tier || 'Unranked')}</td><td>${esc(u.score || 0)}</td><td><span class="status ${statusClass(u.status)}">${esc(u.status)}</span></td><td>${actionButtons(u)}</td></tr>`).join('') || '<tr><td colspan="8">No players on the board yet.</td></tr>';
+      tbody.innerHTML = rows.map(u => `<tr><td>${avatar(u,'small-avatar')} <strong>${esc(playerName(u))}</strong><br><span class="muted">${esc(u.username || '')}</span></td><td>${esc(u.codmUid || '—')}</td><td>${esc(clanRole(u))}</td><td>${esc(u.tier || 'T1')}</td><td>${esc(u.score || 0)}</td><td>${kd(u)}</td><td><span class="status ${statusClass(u.status)}">${esc(normalizeStatus(u.status))}</span></td><td>${actionButtons(u)}</td></tr>`).join('') || '<tr><td colspan="8">No players on the board yet.</td></tr>';
       document.getElementById('memberCards').innerHTML = rows.map(u => memberCard(u, rankMap[u.userId])).join('') || UI.empty('No players on the board yet.');
       UI.tableCellLabels(document.getElementById('membersTable'));
       bindActions();
     }
     function bindActions(){
-      document.querySelectorAll('[data-approve]').forEach(b => UI.bindButton(b, async () => { await API.call('approveUser',{userId:b.dataset.approve},{write:true}); UI.toast('Member approved.','success'); await load(); }));
-      document.querySelectorAll('[data-reject]').forEach(b => UI.bindButton(b, async () => { await API.call('rejectUser',{userId:b.dataset.reject},{write:true}); UI.toast('Application rejected.','success'); await load(); }));
+      document.querySelectorAll('[data-edit-member]').forEach(b => UI.bindButton(b, async () => { const u=currentUsers.find(x=>x.userId===b.dataset.editMember); fillForm(u || {}); openModal(modal); }));
       document.querySelectorAll('[data-suspend]').forEach(b => UI.bindButton(b, async () => { if(!confirm('Suspend this member?')) return; await API.call('suspendUser',{userId:b.dataset.suspend},{write:true}); UI.toast('Member suspended.','success'); await load(); }));
       document.querySelectorAll('[data-reactivate]').forEach(b => UI.bindButton(b, async () => { await API.call('reactivateUser',{userId:b.dataset.reactivate},{write:true}); UI.toast('Member reactivated.','success'); await load(); }));
-      document.querySelectorAll('[data-role-user]').forEach(s => { if(s.dataset.bound === '1') return; s.dataset.bound = '1'; s.addEventListener('change', async () => { if(!confirm('Change this player clan role?')) return; try{ await API.call('updateClanRole',{userId:s.dataset.roleUser, role:s.value},{write:true}); UI.toast('Clan role updated.','success'); await load(); } catch(err){ UI.toast(err.message || 'Unable to update role.','error'); await load(); } }); });
     }
+    function formPayload(fd){
+      return {
+        userId: getVal('memberUserId'), username: getVal('memberUsername'), displayName: getVal('memberUsername'), codmUid: getVal('memberCodmUid'), profileImage: imageData,
+        role: getVal('memberClanRole'), tier: getVal('memberTier'), status: getVal('memberStatusInput'), kills:getVal('memberKills'), deaths:getVal('memberDeaths'), wins:getVal('memberWins'), losses:getVal('memberLosses'), points:getVal('memberPoints'), mvps:getVal('memberMvps'), scrimWins:getVal('memberScrimWins'), tournamentWins:getVal('memberTournamentWins'), activity:getVal('memberActivity'), joinDate:getVal('memberJoinDate'), bio:getVal('memberBio'), notes:getVal('memberBio')
+      };
+    }
+    function parseCsv(text){
+      const rows=[]; let cur='', row=[], quote=false;
+      for(let i=0;i<text.length;i++){ const ch=text[i], next=text[i+1]; if(ch==='"' && quote && next==='"'){ cur+='"'; i++; } else if(ch==='"'){ quote=!quote; } else if(ch===',' && !quote){ row.push(cur.trim()); cur=''; } else if((ch==='\n' || ch==='\r') && !quote){ if(cur || row.length){ row.push(cur.trim()); rows.push(row); row=[]; cur=''; } if(ch==='\r' && next==='\n') i++; } else cur+=ch; }
+      if(cur || row.length){ row.push(cur.trim()); rows.push(row); }
+      return rows.filter(r=>r.some(Boolean));
+    }
+    function previewImport(file){
+      const reader=new FileReader();
+      reader.onload=()=>{
+        const rows=parseCsv(reader.result || ''); const headers=(rows.shift() || []).map(h=>h.trim().toLowerCase());
+        const get=(row,name)=>{ const i=headers.indexOf(name.toLowerCase()); return i>=0 ? row[i] : ''; };
+        const seen=new Set(); importRows=[]; let valid=0, invalid=0, dup=0;
+        const tbody=document.querySelector('#importPreview tbody');
+        const html=rows.map((row,idx)=>{ const item={username:get(row,'username'), codmUid:get(row,'codmuid'), role:get(row,'role')||'MEMBER', tier:get(row,'tier')||'T1', status:get(row,'status')||'ACTIVE', kills:get(row,'kills')||0, deaths:get(row,'deaths')||0, wins:get(row,'wins')||0, losses:get(row,'losses')||0, points:get(row,'points')||0, mvps:get(row,'mvps')||0, scrimWins:get(row,'scrimwins')||0, tournamentWins:get(row,'tournamentwins')||0, activity:get(row,'activity')||'ACTIVE'};
+          const issues=[]; if(!item.username) issues.push('Username required'); if(!item.codmUid) issues.push('CODM UID required'); const key=String(item.codmUid || item.username).toLowerCase(); if(seen.has(key)){ issues.push('Duplicate in file'); dup++; } seen.add(key); const exists=currentUsers.some(u => String(u.codmUid||'').toLowerCase()===String(item.codmUid||'').toLowerCase() || String(u.username||'').toLowerCase()===String(item.username||'').toLowerCase()); const updateExisting=document.getElementById('updateExistingMembers')?.checked; if(exists){ dup++; if(updateExisting) issues.push('Will update existing member'); else issues.push('Member already exists'); }
+          const ok=!issues.some(x => x !== 'Will update existing member'); if(ok){ valid++; importRows.push(item); } else invalid++;
+          return `<tr class="${ok?'':'invalid-row'}"><td>${idx+2}</td><td>${esc(item.username)}</td><td>${esc(item.codmUid)}</td><td>${ok?'Valid':'Check'}</td><td>${esc(issues.join('; ') || 'Ready')}</td></tr>`; }).join('');
+        tbody.innerHTML=html || '<tr><td colspan="5">No rows found.</td></tr>';
+        document.getElementById('importSummary').className='import-summary';
+        document.getElementById('importSummary').textContent=`Valid rows: ${valid} · Invalid rows: ${invalid} · Duplicates: ${dup}`;
+        document.getElementById('confirmImportMembers').disabled=!valid;
+      };
+      reader.readAsText(file);
+    }
+    document.querySelectorAll('[data-close-member-form]').forEach(b=>b.addEventListener('click',()=>closeModal(modal)));
+    document.querySelectorAll('[data-close-import]').forEach(b=>b.addEventListener('click',()=>closeModal(importModal)));
+    modal?.addEventListener('click',e=>{ if(e.target===modal) closeModal(modal); });
+    importModal?.addEventListener('click',e=>{ if(e.target===importModal) closeModal(importModal); });
+    document.getElementById('addMemberBtn')?.addEventListener('click',()=>{ fillForm({status:'ACTIVE',role:'MEMBER',tier:'T1'}); openModal(modal); });
+    document.getElementById('importMembersBtn')?.addEventListener('click',()=>{ importRows=[]; document.getElementById('membersCsvFile').value=''; lastImportFile=null; document.querySelector('#importPreview tbody').innerHTML=''; document.getElementById('importSummary').textContent='Choose a CSV file to preview.'; document.getElementById('confirmImportMembers').disabled=true; openModal(importModal); });
+    document.getElementById('memberImageFile')?.addEventListener('change',e=>{ const file=e.target.files?.[0]; if(!file) return; if(!/^image\/(jpeg|png|webp)$/i.test(file.type)){ UI.toast('Use JPG, PNG or WebP.','error'); e.target.value=''; return; } if(file.size > 650000){ UI.toast('Image is too large. Use a smaller file.','error'); e.target.value=''; return; } const reader=new FileReader(); reader.onload=()=>{ imageData=reader.result; const preview=document.getElementById('memberImagePreview'); if(preview) preview.outerHTML=`<img class="avatar avatar-img large-avatar" id="memberImagePreview" src="${esc(imageData)}" alt="Profile preview">`; }; reader.readAsDataURL(file); });
+    UI.bindForm(document.getElementById('memberForm'), async () => { const payload=formPayload(); const action=payload.userId ? 'updateMember' : 'addMember'; const res=await API.call(action,payload,{write:true}); UI.toast(res.message || (payload.userId ? 'Member saved.' : 'Member added.'),'success'); closeModal(modal); await load(); });
+    document.getElementById('membersCsvFile')?.addEventListener('change',e=>{ const f=e.target.files?.[0]; if(f){ lastImportFile=f; previewImport(f); } });
+    document.getElementById('updateExistingMembers')?.addEventListener('change',()=>{ if(lastImportFile) previewImport(lastImportFile); });
+    UI.bindButton(document.getElementById('confirmImportMembers'), async () => { const res=await API.call('importMembers',{members:JSON.stringify(importRows), updateExisting:document.getElementById('updateExistingMembers')?.checked ? 'YES' : 'NO'},{write:true, timeout:45000}); UI.toast(res.message || 'Members imported.','success'); closeModal(importModal); await load(); });
     ['memberSearch','memberStatus','memberRole'].forEach(id => document.getElementById(id)?.addEventListener('input', load));
     document.getElementById('memberStatus')?.addEventListener('change', load);
     document.getElementById('memberRole')?.addEventListener('change', load);
@@ -168,7 +296,8 @@
     await load();
   };
 
-  Admin.ranking = async function(main){
+  
+Admin.ranking = async function(main){
     const res = await API.call('listUsers',{}, {method:'GET'});
     const users = safeList(res.users).filter(u => u.role !== 'SUPER_ADMIN' && u.isClanMember === 'YES');
     main.innerHTML = `<section class="grid two"><form class="card panel form-grid" id="rankForm"><h2>Adjust Player XP</h2><div class="field"><label>Player</label><select name="userId" required>${memberOptions(users)}</select></div><div class="field"><label>XP change</label><input name="delta" type="number" required placeholder="25 or -10"></div><div class="field"><label>Reason</label><input name="reason" required maxlength="160" placeholder="Scrim correction, bonus, penalty..."></div><button class="btn primary" type="submit" data-loading-text="Updating...">Apply XP</button></form><form class="card panel form-grid" id="setRankForm"><h2>Set Exact Rank</h2><div class="field"><label>Player</label><select name="userId" required>${memberOptions(users)}</select></div><div class="field"><label>Exact score</label><input name="score" type="number" min="0" required></div><div class="field"><label>Tier</label><select name="tier"><option value="">Auto from score</option>${TIERS.map(t => `<option>${t}</option>`).join('')}</select></div><div class="field"><label>Reason</label><input name="reason" required maxlength="160"></div><button class="btn primary" type="submit" data-loading-text="Saving...">Save Exact Rank</button></form></section><section class="card panel" style="margin-top:16px"><h2>Score History</h2><div id="rankHistory">Loading...</div></section>`;
@@ -226,10 +355,94 @@
     document.querySelectorAll('.permission-form').forEach(form => UI.bindForm(form, async fd => { const body=Object.fromEntries(fd.entries()); body.role=form.dataset.role; ['canManageMembers','canManageRanking','canManageMatches','canManageNews','canModerateChat','canManagePermissions'].forEach(k => body[k] = body[k] ? 'true' : 'false'); await API.call('updatePermissions',body,{write:true}); UI.toast('Permissions saved.','success'); }));
   };
   Admin.settings = async function(main,user){
-    const superSettings = user.role === 'SUPER_ADMIN' ? `<form id="clanSettingsForm" class="form-grid"><h2>Clan Settings</h2><div class="field"><label>Clan name</label><input name="clanName" value="${esc(C.APP_NAME || 'SOLOS十ESPORTZ')}"></div><div class="field"><label>Clan tag</label><input name="clanTag" value="${esc(C.CLAN_TAG || 'S²十')}"></div><div class="field"><label>WhatsApp community</label><input name="whatsappUrl" type="url" value="${esc(C.SOCIALS?.whatsapp || '')}"></div><div class="field"><label>Tier thresholds JSON</label><textarea name="tierThresholdsJson">{"T1":0,"T2":500,"T3":1000,"T4":1500}</textarea></div><div class="field"><label>Scoring JSON</label><textarea name="scoringJson">{"WIN":30,"DRAW":15,"LOSS":5,"PARTICIPATION":10,"MVP":10}</textarea></div><button class="btn primary" type="submit" data-loading-text="Saving settings...">Save Clan Settings</button></form><hr style="border-color:var(--line);margin:24px 0">` : '';
-    main.innerHTML = `<section class="settings-layout"><nav class="settings-menu"><button class="active" type="button">Profile</button><button type="button">Security</button></nav><div class="card panel">${superSettings}<form id="profileForm" class="form-grid"><h2>Profile Settings</h2><div class="field"><label>Display name</label><input name="displayName" value="${esc(user.displayName || '')}"></div><div class="field"><label>Profile picture</label><input name="avatarFile" id="profileAvatarFile" type="file" accept="image/png,image/jpeg,image/webp"></div><div class="field"><label>Bio</label><textarea name="bio">${esc(user.bio || '')}</textarea></div><div class="field"><label>Country</label><input name="country" value="${esc(user.country || '')}"></div><div class="field"><label>CODM Role</label><select name="playerRole"><option>${esc(user.playerRole || 'FLEX')}</option><option>IGL</option><option>SLAYER</option><option>SMG</option><option>AR</option><option>SNIPER</option><option>FLEX</option><option>SUPPORT</option><option>BR PLAYER</option><option>MP PLAYER</option></select></div><button class="btn primary" type="submit" data-loading-text="Saving...">Save Profile</button></form><hr style="border-color:var(--line);margin:24px 0"><form id="passwordForm" class="form-grid"><h2>Change Password</h2><div class="field"><label>Current password</label><input name="currentPassword" type="password" required></div><div class="field"><label>New password</label><input name="newPassword" type="password" required minlength="8"></div><div class="field"><label>Confirm new password</label><input name="confirmPassword" type="password" required minlength="8"></div><button class="btn primary" type="submit" data-loading-text="Updating password...">Change Password</button></form></div></section>`;
+    let settings={};
+    try{ settings=(await API.call('getSettings',{}, {method:'GET'})).settings || {}; }catch(err){ settings={}; }
+    let socials=settings.socials || C.SOCIALS || {};
+    if(typeof socials === 'string'){
+      try{ socials=JSON.parse(socials || '{}'); }catch(err){ socials={}; }
+    }
+    C.SOCIALS={...(C.SOCIALS||{}), ...socials};
+    const canEditClan = user.role === 'SUPER_ADMIN';
+    const safeSocial = key => esc((socials && socials[key]) || '');
+    const clanName = esc(settings.clanName || C.APP_NAME || 'SOLOS十ESPORTZ');
+    const clanTag = esc(settings.clanTag || C.CLAN_TAG || 'S²十');
+    const game = esc(settings.game || 'Call of Duty: Mobile');
+    const tiers = esc(settings.tierThresholdsJson || settings.tier_thresholds_json || '{"T1":0,"T2":500,"T3":1000,"T4":1500}');
+    const scoring = esc(settings.scoringJson || settings.scoring_json || '{"WIN":30,"DRAW":15,"LOSS":5,"PARTICIPATION":10,"MVP":10}');
+    const superOnly = canEditClan ? `
+      <section class="settings-block">
+        <h2>Community Links</h2>
+        <p class="muted">Keep the official clan links in one place.</p>
+        <form id="communityLinksForm" class="form-grid">
+          <div class="field"><label>WhatsApp Community</label><input name="whatsappUrl" type="url" inputmode="url" placeholder="https://chat.whatsapp.com/..." value="${safeSocial('whatsapp')}"></div>
+          <div class="field"><label>TikTok</label><input name="tiktokUrl" type="url" inputmode="url" placeholder="https://www.tiktok.com/@solosesportz" value="${safeSocial('tiktok')}"></div>
+          <div class="field"><label>Instagram</label><input name="instagramUrl" type="url" inputmode="url" placeholder="https://www.instagram.com/..." value="${safeSocial('instagram')}"></div>
+          <div class="field"><label>Discord</label><input name="discordUrl" type="url" inputmode="url" placeholder="https://discord.gg/..." value="${safeSocial('discord')}"></div>
+          <div class="field"><label>YouTube</label><input name="youtubeUrl" type="url" inputmode="url" placeholder="https://www.youtube.com/..." value="${safeSocial('youtube')}"></div>
+          <button class="btn primary" type="submit" data-loading-text="Saving links...">Save Links</button>
+        </form>
+      </section>
+      <section class="settings-block">
+        <h2>Clan Information</h2>
+        <form id="clanSettingsForm" class="form-grid">
+          <div class="field"><label>Clan Name</label><input name="clanName" value="${clanName}"></div>
+          <div class="field"><label>Clan Tag</label><input name="clanTag" value="${clanTag}"></div>
+          <div class="field"><label>Game</label><input name="game" value="${game}"></div>
+          <div class="field wide"><label>Tier System</label><textarea name="tierThresholdsJson" rows="3">${tiers}</textarea></div>
+          <div class="field wide"><label>Scoring System</label><textarea name="scoringJson" rows="3">${scoring}</textarea></div>
+          <button class="btn primary" type="submit" data-loading-text="Saving clan info...">Save Clan Info</button>
+        </form>
+      </section>` : `
+      <section class="settings-block">
+        <h2>Clan Information</h2>
+        <div class="settings-list">
+          <p><span>Clan Name</span><strong>${clanName}</strong></p>
+          <p><span>Clan Tag</span><strong>${clanTag}</strong></p>
+          <p><span>Game</span><strong>${game}</strong></p>
+        </div>
+      </section>`;
+    main.innerHTML = `<section class="settings-layout admin-settings-layout">
+      <nav class="settings-menu"><button class="active" type="button">Account</button><button type="button">Profile</button><button type="button">Security</button></nav>
+      <div class="card panel settings-panel">
+        <section class="settings-block account-block">
+          <h2>Account</h2>
+          <div class="settings-list">
+            <p><span>Logged in as</span><strong>${esc(user.displayName || user.username || 'Signed in')}</strong></p>
+            <p><span>Username</span><strong>${esc(user.username || '—')}</strong></p>
+            <p><span>Role</span><strong>${esc(user.role === 'SUPER_ADMIN' ? 'SUPER ADMIN' : (user.clanRole || user.role || 'MANAGEMENT'))}</strong></p>
+            <p><span>Status</span><strong>${esc(user.status || 'ACTIVE')}</strong></p>
+          </div>
+          <button class="btn danger" id="settingsLogoutBtn" type="button" data-loading-text="Logging out...">Logout</button>
+        </section>
+        ${superOnly}
+        <section class="settings-block">
+          <h2>Profile</h2>
+          <form id="profileForm" class="form-grid">
+            <div class="field"><label>Display name</label><input name="displayName" value="${esc(user.displayName || '')}"></div>
+            <div class="field"><label>Profile picture</label><input name="avatarFile" id="profileAvatarFile" type="file" accept="image/png,image/jpeg,image/webp"></div>
+            <div class="field wide"><label>Bio</label><textarea name="bio" rows="3">${esc(user.bio || '')}</textarea></div>
+            <div class="field"><label>Country</label><input name="country" value="${esc(user.country || '')}"></div>
+            <div class="field"><label>CODM Role</label><select name="playerRole"><option>${esc(user.playerRole || 'FLEX')}</option><option>IGL</option><option>SLAYER</option><option>SMG</option><option>AR</option><option>SNIPER</option><option>FLEX</option><option>SUPPORT</option><option>BR PLAYER</option><option>MP PLAYER</option></select></div>
+            <button class="btn primary" type="submit" data-loading-text="Saving...">Save Profile</button>
+          </form>
+        </section>
+        <section class="settings-block">
+          <h2>Security</h2>
+          <form id="passwordForm" class="form-grid">
+            <div class="field"><label>Current password</label><input name="currentPassword" type="password" required></div>
+            <div class="field"><label>New password</label><input name="newPassword" type="password" required minlength="8"></div>
+            <div class="field"><label>Confirm new password</label><input name="confirmPassword" type="password" required minlength="8"></div>
+            <button class="btn primary" type="submit" data-loading-text="Updating password...">Change Password</button>
+          </form>
+        </section>
+      </div>
+    </section>`;
+    UI.bindButton(document.getElementById('settingsLogoutBtn'), async()=>window.SOLOS_AUTH.logout());
+    const validateUrl = v => { if(!v) return ''; try{ const u=new URL(v); if(!['http:','https:'].includes(u.protocol)) throw new Error(); return v; } catch(e){ throw new Error('Please enter a valid URL.'); } };
+    const linksForm=document.getElementById('communityLinksForm');
+    if(linksForm) UI.bindForm(linksForm, async fd => { const body=Object.fromEntries(fd.entries()); ['whatsappUrl','tiktokUrl','instagramUrl','discordUrl','youtubeUrl'].forEach(k=>{ body[k]=validateUrl(String(body[k]||'').trim()); }); await API.call('updateClanSettings',body,{write:true}); API.clearCache(); UI.toast('Links saved.','success'); });
     const clanForm = document.getElementById('clanSettingsForm');
-    if(clanForm) UI.bindForm(clanForm, async fd => { await API.call('updateClanSettings',Object.fromEntries(fd.entries()),{write:true}); UI.toast('Clan settings saved.','success'); });
+    if(clanForm) UI.bindForm(clanForm, async fd => { await API.call('updateClanSettings',Object.fromEntries(fd.entries()),{write:true}); API.clearCache(); UI.toast('Clan info saved.','success'); });
     UI.bindForm(document.getElementById('profileForm'), async fd => { const body = Object.fromEntries(fd.entries()); const f=document.getElementById('profileAvatarFile')?.files?.[0]; if(f) body.avatarData = await window.SOLOS_MEMBER.fileToDataUrl(f); delete body.avatarFile; const res = await API.call('updateProfile',body,{write:true}); if(res.user){ window.SOLOS_APP.user = res.user; } UI.toast('Profile saved.','success'); });
     UI.bindForm(document.getElementById('passwordForm'), async fd => { const b=Object.fromEntries(fd.entries()); if(b.newPassword !== b.confirmPassword) throw new Error('Passwords do not match.'); await API.call('changePassword',b,{write:true}); UI.toast('Password changed.','success'); document.getElementById('passwordForm').reset(); });
   };

@@ -14,6 +14,28 @@
     if(file.size > 520000) throw new Error('Profile picture is too large. Use an image below 500KB.');
     return await new Promise((resolve,reject)=>{ const r=new FileReader(); r.onload=()=>resolve(r.result); r.onerror=()=>reject(new Error('Unable to read profile picture.')); r.readAsDataURL(file); });
   }
+  function applySettings(settings={}){
+    if(settings.clanName) C.APP_NAME = settings.clanName;
+    if(settings.clanTag) C.CLAN_TAG = settings.clanTag;
+    let socials = settings.socials || {};
+    if(typeof socials === 'string'){
+      try{ socials = JSON.parse(socials || '{}'); }catch(err){ socials = {}; }
+    }
+    C.SOCIALS = {...(C.SOCIALS || {}), ...socials};
+    const whatsapp = C.SOCIALS.whatsapp || settings.whatsappUrl || '';
+    if(whatsapp){
+      document.querySelectorAll('a[href*="chat.whatsapp.com"], a[data-community="whatsapp"]').forEach(a=>{ a.href = whatsapp; });
+    }
+    const footerActions = document.querySelector('.footer .nav-actions');
+    if(footerActions && !footerActions.dataset.socialBound){
+      const labels = {tiktok:'TikTok', instagram:'Instagram', discord:'Discord', youtube:'YouTube'};
+      Object.keys(labels).forEach(key=>{
+        const url = C.SOCIALS[key];
+        if(url){ const a=document.createElement('a'); a.href=url; a.target='_blank'; a.rel='noopener'; a.textContent=labels[key]; footerActions.appendChild(a); }
+      });
+      footerActions.dataset.socialBound='1';
+    }
+  }
   function initHeroSlider(){
     const slides=[...document.querySelectorAll('.hero-slide')], dots=document.getElementById('heroDots'); if(!slides.length) return;
     let index=0, startX=0, timer=null;
@@ -26,7 +48,7 @@
     show(0); restart();
   }
   async function loadHome(){
-    try{ const data = await API.call('publicHome', {}, {method:'GET'}); renderKpis(data.stats||{}); renderFeatured(data.featuredMatch); renderNews(data.news||[]); renderRoster(data.roster||[]); renderLeaderboard(data.leaderboard||[]); }
+    try{ const data = await API.call('publicHome', {}, {method:'GET'}); applySettings(data.settings||{}); renderKpis(data.stats||{}); renderFeatured(data.featuredMatch); renderNews(data.news||[]); renderRoster(data.roster||[]); renderLeaderboard(data.leaderboard||[]); }
     catch(err){ console.warn(err.message); }
   }
   function renderKpis(s){ const el=document.getElementById('publicKpis'); if(!el) return; el.innerHTML=`<div><span class="muted">Members</span><strong>${UI.escape(s.totalMembers||0)}</strong></div><div><span class="muted">Win Rate</span><strong>${UI.escape(s.winRate||0)}%</strong></div><div><span class="muted">MVPs</span><strong>${UI.escape(s.totalMvps||0)}</strong></div>`; }
@@ -47,6 +69,8 @@
   function renderMatches(matches){ const list=document.getElementById('matchesList'); if(!list) return; list.innerHTML = matches.length ? matches.map(m=>`<article class="card feature-card"><span class="eyebrow">${UI.escape(m.mode||m.gameMode||'Scrim')}</span><h3>SOLOS十 vs ${UI.escape(m.opponent)}</h3><div class="score">${UI.escape(m.solosScore)} — ${UI.escape(m.opponentScore)}</div><p><span class="status ${String(m.result).toLowerCase()}">${UI.escape(m.result)}</span> <span class="muted">${UI.date(m.matchDate)} · MVP: ${UI.escape(m.mvpName||'—')}</span></p><p class="muted">${UI.escape(m.notes||'No notes from this battle yet.')}</p></article>`).join('') : UI.empty('No battles recorded yet. The first result is waiting.'); }
   async function loadPageLists(){
     try{
+      const settings = await API.call('getSettings',{}, {method:'GET'}).catch(()=>({settings:{}}));
+      applySettings(settings.settings||{});
       if(document.getElementById('teamRoster')) renderRoster((await API.call('getTeam',{}, {method:'GET'})).users||[]);
       if(document.getElementById('matchesList')) renderMatches((await API.call('getMatches',{publishedOnly:'true'}, {method:'GET'})).matches||[]);
       if(document.getElementById('leaderboardTable')) renderLeaderboard((await API.call('getLeaderboard',{}, {method:'GET'})).leaderboard||[]);

@@ -17,7 +17,7 @@
     if(!identity || !password) throw new Error('Enter your username/email and password.');
     const res=await API.call('login',{identity,password},{write:true});
     const session = res.session || { token: res.token, expiresAt: res.expiresAt || '' };
-    if(!session || !session.token) throw new Error('Login succeeded but no session was returned. Redeploy the latest Apps Script backend.');
+    if(!session || !session.token) throw new Error('Sign in could not be completed. Please try again.');
     API.saveSession({...session, role:res.user?.role, clanRole:res.user?.clanRole, user:{role:res.user?.role, clanRole:res.user?.clanRole, username:res.user?.username, displayName:res.user?.displayName}}, false); Auth.user=res.user; document.getElementById('loginMessage').textContent=''; window.SOLOS_APP.boot(res.user);
   };
   Auth.restore=async function(){
@@ -39,7 +39,7 @@
   };
   Auth.logout=async function(){
     try{ await API.call('logout',{}, {write:true}); } catch(err){ console.warn(err.message); }
-    API.clearSession(); Auth.user=null;
+    API.clearSession(); API.clearCache?.(); Auth.user=null;
     history.replaceState(null,'','index.html');
     window.location.replace('index.html');
   };
@@ -48,6 +48,11 @@
     Auth.showPane('loginPane');
     const msg=document.getElementById('loginMessage'); if(msg) msg.textContent=message||'';
   };
+  window.addEventListener('pageshow', (event)=>{
+    if(event.persisted && !API.getSession() && document.getElementById('appShell')){
+      Auth.showAuth('Please sign in again.');
+    }
+  });
   document.addEventListener('DOMContentLoaded',()=>{ if(document.getElementById('authScreen')) Auth.init(); });
   window.SOLOS_AUTH=Auth;
 })();

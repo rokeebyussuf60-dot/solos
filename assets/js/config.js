@@ -6,7 +6,7 @@ window.SOLOS_CONFIG = {
   REQUEST_TIMEOUT_MS: 24000,
   CHAT_POLL_MS: 45000,
   SOCIALS: {
-    whatsapp: 'https://chat.whatsapp.com/DrZtWAFfJZs5p4mFs5CK7V',
+    whatsapp: '',
     tiktok: '',
     instagram: '',
     youtube: '',

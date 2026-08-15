@@ -48,8 +48,13 @@
     const res=await API.call('memberDashboard',{}, {method:'GET'});
     main.innerHTML=`<section class="grid two">${(res.matches||[]).map(m=>`<article class="card feature-card"><span class="eyebrow">${UI.escape(m.mode||'Scrim')}</span><h3>SOLOS十 vs ${UI.escape(m.opponent)}</h3><div class="score">${UI.escape(m.solosScore)} — ${UI.escape(m.opponentScore)}</div><p><span class="status ${String(m.result).toLowerCase()}">${UI.escape(m.result)}</span> <span class="muted">${UI.date(m.matchDate)}</span></p></article>`).join('')||UI.empty('No battles recorded yet.')}</section>`;
   };
-  Member.community=function(main){
-    main.innerHTML=`<section class="card panel"><h2>The Clan Room</h2><p class="muted">Talk. Share clips. Find teammates. Set up a scrim. Just don't flood the room.</p><p><a class="btn cyan small" href="${UI.escape(C.SOCIALS.whatsapp)}" target="_blank" rel="noopener">WhatsApp Community</a></p><div id="chatMount"></div></section>`;
+  Member.community=async function(main){
+    const settings=await API.call('getSettings',{}, {method:'GET'}).catch(()=>({settings:{}}));
+    let socials=settings.settings?.socials || C.SOCIALS || {};
+    if(typeof socials === 'string'){ try{ socials=JSON.parse(socials||'{}'); }catch(err){ socials={}; } }
+    C.SOCIALS={...(C.SOCIALS||{}), ...socials};
+    const whatsapp=C.SOCIALS.whatsapp || '';
+    main.innerHTML=`<section class="card panel"><h2>The Clan Room</h2><p class="muted">Talk. Share clips. Find teammates. Set up a scrim. Just don't flood the room.</p>${whatsapp ? `<p><a class="btn cyan small" href="${UI.escape(whatsapp)}" target="_blank" rel="noopener">WhatsApp Community</a></p>` : ''}<div id="chatMount"></div></section>`;
     window.SOLOS_CHAT.mount(document.getElementById('chatMount'), false);
   };
   Member.notifications=async function(main){
@@ -57,8 +62,43 @@
     main.innerHTML=`<section class="card panel"><h2>Notifications</h2>${(res.notifications||[]).map(n=>`<p><strong>${UI.escape(n.title)}</strong><br>${UI.escape(n.message)}<br><span class="muted">${UI.date(n.createdAt)}</span></p>`).join('')||UI.empty('Nothing for you yet.')}</section>`;
   };
   Member.settings=async function(main,user){
-    const res=await API.call('me',{}, {method:'GET'}); user=res.user||user;
-    main.innerHTML=`<section class="settings-layout member-settings"><nav class="settings-menu"><button class="active" type="button">Profile</button><button type="button">Security</button></nav><div class="card panel"><form id="memberProfileForm" class="form-grid"><h2>My Profile</h2><p class="muted">Update your public player profile. Clan role, tag, tier and score are controlled by leadership.</p><div class="field"><label>Display name</label><input name="displayName" value="${UI.escape(user.displayName||'')}"></div><div class="field"><label>Profile picture</label><input name="avatarFile" id="memberAvatarFile" type="file" accept="image/png,image/jpeg,image/webp"></div><div class="field"><label>Bio</label><textarea name="bio">${UI.escape(user.bio||'')}</textarea></div><div class="field"><label>Country</label><input name="country" value="${UI.escape(user.country||'')}"></div><div class="field"><label>CODM Role</label><select name="playerRole"><option>${UI.escape(user.playerRole||'FLEX')}</option><option>IGL</option><option>SLAYER</option><option>SMG</option><option>AR</option><option>SNIPER</option><option>FLEX</option><option>SUPPORT</option><option>BR PLAYER</option><option>MP PLAYER</option></select></div><button class="btn primary" type="submit" data-loading-text="Saving...">Save Profile</button></form><hr style="border-color:var(--line);margin:24px 0"><form id="memberPasswordForm" class="form-grid"><h2>Change Password</h2><div class="field"><label>Current password</label><input name="currentPassword" type="password" required></div><div class="field"><label>New password</label><input name="newPassword" type="password" required minlength="8"></div><div class="field"><label>Confirm new password</label><input name="confirmPassword" type="password" required minlength="8"></div><button class="btn primary" type="submit" data-loading-text="Updating password...">Change Password</button></form></div></section>`;
+    const res=await API.call('me',{}, {method:'GET', cache:false}); user=res.user||user;
+    main.innerHTML=`<section class="settings-layout member-settings">
+      <nav class="settings-menu"><button class="active" type="button">Account</button><button type="button">Profile</button><button type="button">Security</button></nav>
+      <div class="card panel settings-panel">
+        <section class="settings-block account-block">
+          <h2>Account</h2>
+          <div class="settings-list">
+            <p><span>Player</span><strong>${UI.escape(playerName(user))}</strong></p>
+            <p><span>Username</span><strong>${UI.escape(user.username||'—')}</strong></p>
+            <p><span>Status</span><strong>${UI.escape(user.status||'ACTIVE')}</strong></p>
+            <p><span>Tier</span><strong>${UI.escape(user.tier||'—')}</strong></p>
+          </div>
+          <button class="btn danger" id="memberSettingsLogout" type="button" data-loading-text="Logging out...">Logout</button>
+        </section>
+        <section class="settings-block">
+          <h2>My Profile</h2>
+          <form id="memberProfileForm" class="form-grid">
+            <div class="field"><label>Display name</label><input name="displayName" value="${UI.escape(user.displayName||'')}"></div>
+            <div class="field"><label>Profile picture</label><input name="avatarFile" id="memberAvatarFile" type="file" accept="image/png,image/jpeg,image/webp"></div>
+            <div class="field wide"><label>Bio</label><textarea name="bio" rows="3">${UI.escape(user.bio||'')}</textarea></div>
+            <div class="field"><label>Country</label><input name="country" value="${UI.escape(user.country||'')}"></div>
+            <div class="field"><label>CODM Role</label><select name="playerRole"><option>${UI.escape(user.playerRole||'FLEX')}</option><option>IGL</option><option>SLAYER</option><option>SMG</option><option>AR</option><option>SNIPER</option><option>FLEX</option><option>SUPPORT</option><option>BR PLAYER</option><option>MP PLAYER</option></select></div>
+            <button class="btn primary" type="submit" data-loading-text="Saving...">Save Profile</button>
+          </form>
+        </section>
+        <section class="settings-block">
+          <h2>Security</h2>
+          <form id="memberPasswordForm" class="form-grid">
+            <div class="field"><label>Current password</label><input name="currentPassword" type="password" required></div>
+            <div class="field"><label>New password</label><input name="newPassword" type="password" required minlength="8"></div>
+            <div class="field"><label>Confirm new password</label><input name="confirmPassword" type="password" required minlength="8"></div>
+            <button class="btn primary" type="submit" data-loading-text="Updating password...">Change Password</button>
+          </form>
+        </section>
+      </div>
+    </section>`;
+    UI.bindButton(document.getElementById('memberSettingsLogout'), async()=>window.SOLOS_AUTH.logout());
     UI.bindForm(document.getElementById('memberProfileForm'),async fd=>{ const body=Object.fromEntries(fd.entries()); const f=document.getElementById('memberAvatarFile')?.files?.[0]; if(f) body.avatarData=await fileToDataUrl(f); delete body.avatarFile; const out=await API.call('updateProfile',body,{write:true}); if(out.user){ window.SOLOS_APP.user=out.user; } UI.toast('Profile saved.','success'); });
     UI.bindForm(document.getElementById('memberPasswordForm'),async fd=>{ const b=Object.fromEntries(fd.entries()); if(b.newPassword!==b.confirmPassword) throw new Error('Passwords do not match.'); await API.call('changePassword',b,{write:true}); UI.toast('Password changed.','success'); document.getElementById('memberPasswordForm').reset(); });
   };
